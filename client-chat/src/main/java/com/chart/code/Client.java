@@ -136,7 +136,6 @@ public class Client {
                             Integer senderId = dialogueVO.getSenderId();
                             FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                             friendPanel.getDialoguePanel().addFriendMessage(dialogueVO.getContent());
-                            System.out.println("logout");
                             break;
                         default:
                     }

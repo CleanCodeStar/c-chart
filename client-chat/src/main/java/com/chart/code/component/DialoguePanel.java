@@ -12,9 +12,13 @@ import com.chart.code.enums.MsgType;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
 import lombok.Getter;
+import org.jdesktop.swingx.JXTextArea;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -27,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 public class DialoguePanel extends JPanel {
     public final UserVO userVO;
     public final JPanel panel;
-    public final JTextArea inputTextArea;
+    public final JXTextArea inputTextArea;
 
     public DialoguePanel(UserVO userVO) {
         this.userVO = userVO;
@@ -37,9 +41,15 @@ public class DialoguePanel extends JPanel {
         panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Constant.BACKGROUND_COLOR);
+        panel.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                System.out.println("变化了");
+            }
+        });
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.getVerticalScrollBar().setUnitIncrement(30);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBorder(null);
         add(scrollPane, "1,1,1,1");
@@ -55,7 +65,7 @@ public class DialoguePanel extends JPanel {
 
 
         // 输入区
-        inputTextArea = new JTextArea();
+        inputTextArea = new JXTextArea("输入要发送的内容");
         inputTextArea.setLineWrap(true);
         inputTextArea.setBackground(Constant.BACKGROUND_COLOR);
         inputTextArea.requestFocus();
@@ -116,21 +126,27 @@ public class DialoguePanel extends JPanel {
     public void addFriendMessage(String message) {
         JPanel jPanel = new JPanel();
         panel.add(jPanel);
+        // jPanel.setPreferredSize(new Dimension(0, 0));
+        // jPanel.setMinimumSize(new Dimension(0, 0));
+        jPanel.setLayout((new TableLayout(new double[][]{{30, 10, TableLayout.FILL, TableLayout.FILL, TableLayout.FILL, 10, 30}, {30, TableLayout.MINIMUM}})));
+        ImageIcon imageIcon = ImageIconUtil.base64ToImageIcon(userVO.getHead());
+        JLabel head = new JLabel(imageIcon);
+        head.setMinimumSize(new Dimension(30, 30));
+        head.setPreferredSize(new Dimension(30, 30));
+        jPanel.add(head, "6,0,6,0");
 
-        jPanel.setLayout(new TableLayout(new double[][]{{30, 5, TableLayout.FILL, TableLayout.FILL, TableLayout.FILL, 5, 30}, {10, TableLayout.FULL, 10}}));
-        // ImageIcon imageIcon = ImageIconUtil.base64ToImageIcon(userVO.getHead());
-        // JLabel head = new JLabel(imageIcon);
-        // head.setMinimumSize(new Dimension(30, 30));
-        // head.setPreferredSize(new Dimension(30, 30));
-        // jPanel.add(head, "6,1,6,1");
-
-        JTextArea textArea = new JTextArea();
-        textArea.setMinimumSize(new Dimension(0, 0));
-        textArea.setMaximumSize(new Dimension(0, 50));
-        textArea.setPreferredSize(new Dimension(0, 0));
+        JXTextArea textArea = new JXTextArea();
         textArea.setLineWrap(true);
         textArea.setText(message);
-        jPanel.add(textArea, "3,1,4,2");
+        jPanel.add(textArea, "3,0,4,1");
+        // jPanel.add(textArea, "3,1,4,2");
+        if (panel.getComponentCount() % 2 == 0) {
+            panel.setPreferredSize(new Dimension(0, 0));
+            panel.setMinimumSize(new Dimension(0, 0));
+        }else{
+            panel.setPreferredSize(null);
+            panel.setMinimumSize(null);
+        }
         panel.updateUI();
     }
 
