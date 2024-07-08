@@ -31,7 +31,7 @@ public class LoginFrame extends JFrame {
         JTextField userNameTextField = new JTextField();
         userNameTextField.setFont(new Font("微软雅黑", Font.PLAIN, 16));
         userNameTextField.setToolTipText("用户名");
-        userNameTextField.setText("");
+        userNameTextField.setText("admin");
         userNameTextField.setFocusable(true);
         add(userNameTextField, "3, 1");
 
@@ -41,7 +41,7 @@ public class LoginFrame extends JFrame {
         JPasswordField passwordField = new JPasswordField();
         passwordField.setFont(new Font("微软雅黑", Font.PLAIN, 16));
         passwordField.setToolTipText("密码");
-        passwordField.setText("");
+        passwordField.setText("123456");
         passwordField.setFocusable(true);
         add(passwordField, "3, 3");
 

@@ -1,11 +1,14 @@
 package com.chart.code;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.chart.code.component.FriendPanel;
 import com.chart.code.component.MainFrame;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
+import com.chart.code.vo.DialogueVO;
 import com.chart.code.vo.Result;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
@@ -28,7 +31,7 @@ public class Client {
     /**
      * 单例模式
      */
-    private static Client instance;
+    private static volatile Client instance;
 
     private InputStream inputStream;
     private OutputStream outputStream;
@@ -123,17 +126,27 @@ public class Client {
                             if (userResult.getCode() == 200) {
                                 Storage.loginFrame.dispose();
                                 Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
+                                BeanUtil.copyProperties(userResult.getData(), Storage.currentUser);
                             } else {
                                 JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
                             }
                             break;
-                        case LOGOUT:
+                        case MESSAGE:
+                            DialogueVO dialogueVO = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8),DialogueVO.class);
+                            Integer senderId = dialogueVO.getSenderId();
+                            FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                            friendPanel.getDialoguePanel().addFriendMessage(dialogueVO.getContent());
                             System.out.println("logout");
                             break;
                         default:
                     }
                 }
             } catch (Exception e) {
+                try {
+                    Client.getInstance().disconnect();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
                 System.err.println("连接断开,线程结束");
             }
         });

@@ -20,6 +20,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -91,14 +92,15 @@ public class StartServer {
                                     SQLiteService sqLiteService = new SQLiteService();
                                     User queryUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
                                     if (queryUser != null) {
+                                        userId = queryUser.getId();
                                         UserVO userVO = BeanUtil.copyProperties(queryUser, UserVO.class);
                                         List<UserVO> userVOS = sqLiteService.queryAll();
-                                        Set<Integer> onLineIds = Storage.userSocketsMap.keySet();
+                                        Set<Integer> onLineIds = new HashSet<>(Storage.userSocketsMap.keySet());
+                                        onLineIds.add(userId);
                                         userVOS = userVOS.stream().peek(value -> value.setOnLine(onLineIds.contains(value.getId()))).collect(Collectors.toList());
                                         userVO.setFriends(userVOS);
                                         Result<UserVO> result = Result.buildOk("登录成功", userVO);
                                         outputStream.write(new ByteData(MsgType.LOGIN, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8)).toByteArray());
-                                        userId = queryUser.getId();
                                         // 发送给所有好友上线信息
                                         Storage.userSocketsMap.values().forEach(userSocket -> {
                                             try {
@@ -118,12 +120,11 @@ public class StartServer {
                                 case MESSAGE:
                                     DialogueVO dialogueVO = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), DialogueVO.class);
                                     Integer receiverId = dialogueVO.getReceiverId();
-                                    String content = dialogueVO.getContent();
                                     Socket receiverSocket = Storage.userSocketsMap.get(receiverId);
                                     if (receiverSocket != null) {
                                         try {
                                             OutputStream receiverOutputStream = receiverSocket.getOutputStream();
-                                            receiverOutputStream.write(new ByteData(MsgType.MESSAGE, content.getBytes(StandardCharsets.UTF_8)).toByteArray());
+                                            receiverOutputStream.write(new ByteData(MsgType.MESSAGE, bytes).toByteArray());
                                         } catch (Exception e) {
                                             Result<UserVO> result = Result.buildFail("对方不在线！");
                                             outputStream.write(new ByteData(MsgType.LOGIN, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8)).toByteArray());
@@ -134,7 +135,8 @@ public class StartServer {
                             }
                         }
                     } catch (Exception e) {
-                        System.err.println("连接断开,线程结束");
+                        Storage.userSocketsMap.remove(userId, socket);
+                        System.err.println(userId + " 连接断开,线程结束");
                     }
                 }
             });

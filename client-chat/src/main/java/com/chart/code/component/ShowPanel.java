@@ -1,45 +1,43 @@
 package com.chart.code.component;
 
+import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
-import lombok.Getter;
 
 import javax.swing.*;
 import java.awt.*;
 
 /**
- * 好友信息显示面板
+ * 展示面板
  *
  * @author CleanCode
  */
-@Getter
-public class FriendPanel extends JPanel {
-    private final UserVO userVO;
-    private final DialoguePanel dialoguePanel;
+public class ShowPanel extends JPanel {
 
-    public FriendPanel(UserVO userVO) {
-        this.userVO = userVO;
-        dialoguePanel = new DialoguePanel(userVO);
-        setLayout(new TableLayout(new double[][]{{50, 5, TableLayout.FILL, 90}, {5, 22, 6, 22, 5}}));
+    public ShowPanel(UserVO userVO) {
+        setBackground(Constant.BACKGROUND_COLOR);
+        setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Color.LIGHT_GRAY));
+        setLayout(new TableLayout(new double[][]{{10, 50, 10, TableLayout.FILL, 0}, {5, 22, 6, 22, TableLayout.FILL, 5}}));
         ImageIcon imageIcon = ImageIconUtil.base64ToImageIcon(userVO.getHead());
         if (imageIcon != null) {
             JLabel label = new JLabel(imageIcon);
-            add(label, "0,1,0,3");
+            add(label, "1,1,1,3");
         } else {
             JLabel label = new JLabel();
-            add(label, "0,1,0,3");
+            add(label, "1,1,1,3");
         }
         JLabel nickname = new JLabel(userVO.getNickname());
+        nickname.setMaximumSize(new Dimension(0, 0));
+        nickname.setPreferredSize(new Dimension(0, 0));
         nickname.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-        add(nickname, "2,1,2,1");
-        JLabel username = new JLabel(userVO.getUsername());
-        username.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-        add(username, "2,3,2,3");
+        add(nickname, "3,1,3,1");
 
         JLabel onLine = new JLabel(userVO.getOnLine() ? "在线" : "离线");
+        onLine.setMaximumSize(new Dimension(0, 0));
+        onLine.setPreferredSize(new Dimension(0, 0));
         onLine.setFont(new Font("微软雅黑", Font.PLAIN, 12));
-        add(onLine, "3,1,3,1");
+        add(onLine, "3,3,3,3");
         setBackground(Color.WHITE);
     }
 }

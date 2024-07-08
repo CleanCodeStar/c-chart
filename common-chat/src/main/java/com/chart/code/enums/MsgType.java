@@ -25,7 +25,7 @@ public enum MsgType {
     /**
      * 发送消息
      */
-    MESSAGE("发送消息", new byte[]{0x13}),
+    MESSAGE("消息", new byte[]{0x13}),
     /**
      * 发送文件
      */
