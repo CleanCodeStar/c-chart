@@ -189,11 +189,14 @@ public class StartServer {
                                                 OutputStream receiverOutputStream = receiverSocket.getOutputStream();
                                                 ByteData byteData = ByteData.buildFile(senderId, receiverId, fileName, fileSize, bytes);
                                                 receiverOutputStream.write(byteData.toByteArray());
+                                                receiverOutputStream.flush();
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
                                                 ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
                                                 outputStream.write(build.toByteArray());
                                             }
+                                        }else {
+                                            System.err.println("没得到socket");
                                         }
                                         break;
                                     default:

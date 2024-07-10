@@ -229,6 +229,7 @@ public class Client {
             outputStream.write(byteData.toByteArray());
             outputStream.flush();
         } catch (IOException e) {
+            e.printStackTrace();
             disconnect();
             System.err.println("消息发送失败");
             throw new RuntimeException(e);

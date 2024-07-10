@@ -4,6 +4,7 @@ import com.chart.code.enums.MsgType;
 import com.google.common.io.BaseEncoding;
 import lombok.Data;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -126,11 +127,8 @@ public class ByteData {
     }
 
     public static void main(String[] args) {
-        byte[] decode = BaseEncoding.base16().decode(String.format("%016X", -1L));
-        System.out.println(Arrays.toString(decode));
+        File file = new File("E:\\Document\\笔记.xlsx");
+        byte[] decode = BaseEncoding.base16().decode(String.format("%016X", file.length()));
         System.out.println(Long.parseLong(BaseEncoding.base16().encode(decode), 16));
-        System.out.println(String.format("%020X", Long.MAX_VALUE-1));
-        System.out.println(String.format("%04X", Integer.MAX_VALUE));
-        System.out.println(Long.MAX_VALUE);
     }
 }
