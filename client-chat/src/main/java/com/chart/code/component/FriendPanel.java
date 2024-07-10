@@ -16,6 +16,7 @@ import java.awt.*;
 @Getter
 public class FriendPanel extends JPanel {
     private final UserVO userVO;
+    private final JLabel onLine ;
     private final DialoguePanel dialoguePanel;
 
     public FriendPanel(UserVO userVO) {
@@ -37,9 +38,13 @@ public class FriendPanel extends JPanel {
         username.setFont(new Font("微软雅黑", Font.PLAIN, 12));
         add(username, "2,3,2,3");
 
-        JLabel onLine = new JLabel(userVO.getOnLine() ? "在线" : "离线");
+         onLine = new JLabel(userVO.getOnLine() ? "在线" : "离线");
         onLine.setFont(new Font("微软雅黑", Font.PLAIN, 12));
         add(onLine, "3,1,3,1");
         setBackground(Color.WHITE);
+    }
+    public void setOnLine(boolean onLine) {
+        this.onLine.setText(onLine ? "在线" : "离线");
+        dialoguePanel.showPanel.getOnLine().setText(onLine ? "在线" : "离线");
     }
 }

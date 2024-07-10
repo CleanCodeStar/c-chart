@@ -8,7 +8,6 @@ import com.chart.code.define.User;
 import com.chart.code.dto.UserDTO;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
-import com.chart.code.vo.DialogueVO;
 import com.chart.code.vo.Result;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
@@ -32,114 +31,191 @@ import java.util.stream.Collectors;
  */
 public class StartServer {
     public static void main(String[] args) throws IOException {
-        ServerSocket serverSocket = new ServerSocket(8199);
-        while (true) {
-            Socket socket = serverSocket.accept();
-            ThreadUtil.addRunnable(new Runnable() {
-                private Integer userId;
+        try (ServerSocket serverSocket = new ServerSocket(8199)) {
+            System.out.println("服务启动成功,等待客户端连接");
+            while (true) {
+                Socket socket = serverSocket.accept();
+                InputStream inputStream = socket.getInputStream();
+                OutputStream outputStream = socket.getOutputStream();
+                ThreadUtil.addRunnable(new Runnable() {
+                    private User user;
 
-                @Override
-                public void run() {
-                    try {
-                        System.out.println("接收到连接信息");
-                        InputStream inputStream = socket.getInputStream();
-                        OutputStream outputStream = socket.getOutputStream();
-                        while (true) {
-                            // 读取header
-                            byte[] bytes = new byte[1];
-                            int len = inputStream.read(bytes);
-                            if (len == -1) {
-                                socket.close();
-                                continue;
-                            }
-                            if (!Arrays.equals(new byte[]{0x10}, bytes)) {
-                                // 返回错误
-                                socket.close();
-                                continue;
-                            }
-                            // 读取type
-                            bytes = new byte[1];
-                            len = inputStream.read(bytes);
-                            if (len == -1) {
-                                socket.close();
-                                continue;
-                            }
-                            MsgType msgType = MsgType.getMsgType(bytes);
-                            if (msgType == null) {
-                                // 返回错误
-                                socket.close();
-                                continue;
-                            }
-                            // 消息长度
-                            bytes = new byte[3];
-                            len = inputStream.read(bytes);
-                            if (len == -1) {
-                                socket.close();
-                                continue;
-                            }
-                            int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
-                            // 消息体
-                            bytes = new byte[bodyLength];
-                            len = inputStream.read(bytes);
-                            if (len == -1) {
-                                socket.close();
-                                continue;
-                            }
-                            switch (msgType) {
-                                case LOGIN:
-                                    UserDTO user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
-                                    // 判断登录信息，然后返回消息
-                                    SQLiteService sqLiteService = new SQLiteService();
-                                    User queryUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
-                                    if (queryUser != null) {
-                                        userId = queryUser.getId();
-                                        UserVO userVO = BeanUtil.copyProperties(queryUser, UserVO.class);
-                                        List<UserVO> userVOS = sqLiteService.queryAll();
-                                        Set<Integer> onLineIds = new HashSet<>(Storage.userSocketsMap.keySet());
-                                        onLineIds.add(userId);
-                                        userVOS = userVOS.stream().peek(value -> value.setOnLine(onLineIds.contains(value.getId()))).collect(Collectors.toList());
-                                        userVO.setFriends(userVOS);
-                                        Result<UserVO> result = Result.buildOk("登录成功", userVO);
-                                        outputStream.write(new ByteData(MsgType.LOGIN, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8)).toByteArray());
-                                        // 发送给所有好友上线信息
-                                        Storage.userSocketsMap.values().forEach(userSocket -> {
-                                            try {
-                                                userSocket.getOutputStream().write(new ByteData(MsgType.ONLINE, JSON.toJSONString(userVO).getBytes(StandardCharsets.UTF_8)).toByteArray());
-                                            } catch (IOException ignored) {
-                                            }
-                                        });
-                                        // 先向所有好友发送上线信息，然后加入缓存
-                                        Storage.userSocketsMap.put(userId, socket);
-                                    } else {
-                                        Result<UserVO> result = Result.buildFail("用户名或密码错误！");
-                                        outputStream.write(new ByteData(MsgType.LOGIN, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8)).toByteArray());
-                                        // 断开连接
+                    @Override
+                    public void run() {
+                        try {
+                            System.out.println("接收到连接信息");
+                            while (true) {
+                                // 读取header
+                                byte[] bytes = new byte[1];
+                                int len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                if (!Arrays.equals(new byte[]{0x10}, bytes)) {
+                                    // 返回错误
+                                    socket.close();
+                                    continue;
+                                }
+                                // 读取type
+                                bytes = new byte[1];
+                                len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                MsgType msgType = MsgType.getMsgType(bytes);
+                                if (msgType == null) {
+                                    // 返回错误
+                                    socket.close();
+                                    continue;
+                                }
+                                // 发送者Id
+                                bytes = new byte[3];
+                                len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                                // 接收者Id
+                                bytes = new byte[3];
+                                len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                int receiverId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                                // 文件名称
+                                String fileName = null;
+                                // 文件大小
+                                long fileSize = 0;
+                                if (MsgType.FILE.equals(msgType)) {
+                                    // 文件名称长度
+                                    bytes = new byte[3];
+                                    len = inputStream.read(bytes);
+                                    if (len == -1) {
                                         socket.close();
+                                        continue;
                                     }
-                                    break;
-                                case MESSAGE:
-                                    DialogueVO dialogueVO = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), DialogueVO.class);
-                                    Integer receiverId = dialogueVO.getReceiverId();
-                                    Socket receiverSocket = Storage.userSocketsMap.get(receiverId);
-                                    if (receiverSocket != null) {
-                                        try {
-                                            OutputStream receiverOutputStream = receiverSocket.getOutputStream();
-                                            receiverOutputStream.write(new ByteData(MsgType.MESSAGE, bytes).toByteArray());
-                                        } catch (Exception e) {
-                                            Result<UserVO> result = Result.buildFail("对方不在线！");
-                                            outputStream.write(new ByteData(MsgType.LOGIN, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8)).toByteArray());
+                                    int fileNameLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                                    // 文件名称
+                                    bytes = new byte[fileNameLength];
+                                    len = inputStream.read(bytes);
+                                    if (len == -1) {
+                                        socket.close();
+                                        continue;
+                                    }
+                                    fileName = new String(bytes, StandardCharsets.UTF_8);
+                                    // 文件大小
+                                    bytes = new byte[3];
+                                    len = inputStream.read(bytes);
+                                    if (len == -1) {
+                                        socket.close();
+                                        continue;
+                                    }
+                                    fileSize = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
+                                }
+                                // 消息长度
+                                bytes = new byte[3];
+                                len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                                // 消息体
+                                bytes = new byte[bodyLength];
+                                len = inputStream.read(bytes);
+                                if (len == -1) {
+                                    socket.close();
+                                    continue;
+                                }
+                                Socket receiverSocket;
+                                switch (msgType) {
+                                    case LOGIN:
+                                        UserDTO user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
+                                        // 判断登录信息，然后返回消息
+                                        SQLiteService sqLiteService = new SQLiteService();
+                                        User currentUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
+                                        if (currentUser != null) {
+                                            this.user = currentUser;
+                                            System.out.println(this.user.getNickname() + "  登录成功");
+                                            UserVO userVO = BeanUtil.copyProperties(currentUser, UserVO.class);
+                                            List<UserVO> users = sqLiteService.queryAll();
+                                            Set<Integer> onLineIds = new HashSet<>(Storage.userSocketsMap.keySet());
+                                            onLineIds.add(this.user.getId());
+                                            users = users.stream().peek(value -> value.setOnLine(onLineIds.contains(value.getId()))).collect(Collectors.toList());
+                                            userVO.setFriends(users);
+                                            Result<UserVO> result = Result.buildOk("登录成功", userVO);
+                                            ByteData byteData = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(byteData.toByteArray());
+                                            // 发送给所有好友上线信息
+                                            Storage.userSocketsMap.values().forEach(userSocket -> {
+                                                try {
+                                                    ByteData build = ByteData.build(MsgType.ONLINE, JSON.toJSONString(userVO).getBytes(StandardCharsets.UTF_8));
+                                                    userSocket.getOutputStream().write(build.toByteArray());
+                                                } catch (IOException ignored) {
+                                                }
+                                            });
+                                            // 先向所有好友发送上线信息，然后加入缓存
+                                            Storage.userSocketsMap.put(this.user.getId(), socket);
+                                        } else {
+                                            Result<UserVO> result = Result.buildFail("用户名或密码错误！");
+                                            ByteData byteData = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(byteData.toByteArray());
+                                            // 断开连接
+                                            socket.close();
                                         }
-                                    }
-                                    break;
-                                default:
+                                        break;
+                                    case MESSAGE:
+                                        receiverSocket = Storage.userSocketsMap.get(receiverId);
+                                        if (receiverSocket != null) {
+                                            try {
+                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
+                                                ByteData byteData = ByteData.buildMsg(senderId, receiverId, bytes);
+                                                receiverOutputStream.write(byteData.toByteArray());
+                                            } catch (Exception e) {
+                                                Result<UserVO> result = Result.buildFail("对方不在线！");
+                                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                                outputStream.write(build.toByteArray());
+                                            }
+                                        }
+                                        break;
+                                    case FILE:
+                                        System.out.println(fileName + " ------ " + fileSize);
+                                        receiverSocket = Storage.userSocketsMap.get(receiverId);
+                                        // if (receiverSocket != null) {
+                                        //     try {
+                                        //         OutputStream receiverOutputStream = receiverSocket.getOutputStream();
+                                        //         ByteData byteData = ByteData.buildFile(senderId, receiverId, fileName, fileSize, bytes);
+                                        //         receiverOutputStream.write(byteData.toByteArray());
+                                        //     } catch (Exception e) {
+                                        //         Result<UserVO> result = Result.buildFail("对方不在线！");
+                                        //         ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                        //         outputStream.write(build.toByteArray());
+                                        //     }
+                                        // }
+                                        break;
+                                    default:
+                                }
                             }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Storage.userSocketsMap.remove(this.user.getId(), socket);
+                            // 发送给所有好友离线信息
+                            Storage.userSocketsMap.values().forEach(userSocket -> {
+                                try {
+                                    ByteData build = ByteData.build(MsgType.OFFLINE, JSON.toJSONString(this.user).getBytes(StandardCharsets.UTF_8));
+                                    userSocket.getOutputStream().write(build.toByteArray());
+                                } catch (IOException ignored) {
+                                }
+                            });
+                            System.out.println(this.user.getNickname() + "  连接断开,线程结束");
                         }
-                    } catch (Exception e) {
-                        Storage.userSocketsMap.remove(userId, socket);
-                        System.err.println(userId + " 连接断开,线程结束");
                     }
-                }
-            });
+                });
+            }
         }
     }
 }

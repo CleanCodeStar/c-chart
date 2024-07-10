@@ -4,6 +4,7 @@ import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
+import lombok.Getter;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,7 +14,10 @@ import java.awt.*;
  *
  * @author CleanCode
  */
+@Getter
 public class ShowPanel extends JPanel {
+
+    private final JLabel onLine;
 
     public ShowPanel(UserVO userVO) {
         setBackground(Constant.BACKGROUND_COLOR);
@@ -33,7 +37,7 @@ public class ShowPanel extends JPanel {
         nickname.setFont(new Font("微软雅黑", Font.PLAIN, 12));
         add(nickname, "3,1,3,1");
 
-        JLabel onLine = new JLabel(userVO.getOnLine() ? "在线" : "离线");
+        onLine = new JLabel(userVO.getOnLine() ? "在线" : "离线");
         onLine.setMaximumSize(new Dimension(0, 0));
         onLine.setPreferredSize(new Dimension(0, 0));
         onLine.setFont(new Font("微软雅黑", Font.PLAIN, 12));

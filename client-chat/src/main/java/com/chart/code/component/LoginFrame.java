@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import com.chart.code.Client;
 import com.chart.code.define.ByteData;
 import com.chart.code.dto.UserDTO;
-import com.chart.code.enums.MsgType;
 import info.clearthought.layout.TableLayout;
 
 import javax.swing.*;
@@ -64,7 +63,7 @@ public class LoginFrame extends JFrame {
                 String password = passwordField.getText();
                 UserDTO user = new UserDTO();
                 user.setUsername(username).setPassword(password).setRemember(rememberPasswordCheckBox.isSelected());
-                ByteData byteData = new ByteData(MsgType.LOGIN, JSON.toJSONString(user).getBytes(StandardCharsets.UTF_8));
+                ByteData byteData = ByteData.buildLogin(JSON.toJSONString(user).getBytes(StandardCharsets.UTF_8));
                 client.send(byteData);
             } catch (IOException ex) {
                 try {

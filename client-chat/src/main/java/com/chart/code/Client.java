@@ -8,7 +8,6 @@ import com.chart.code.component.MainFrame;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
-import com.chart.code.vo.DialogueVO;
 import com.chart.code.vo.Result;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
@@ -27,7 +26,7 @@ import java.util.Arrays;
  * @author CleanCode
  */
 public class Client {
-
+    int x = 0;
     /**
      * 单例模式
      */
@@ -104,6 +103,53 @@ public class Client {
                         socket.close();
                         continue;
                     }
+                    // 发送者Id
+                    bytes = new byte[3];
+                    len = inputStream.read(bytes);
+                    if (len == -1) {
+                        socket.close();
+                        continue;
+                    }
+                    int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                    // 接收者Id
+                    bytes = new byte[3];
+                    len = inputStream.read(bytes);
+                    if (len == -1) {
+                        socket.close();
+                        continue;
+                    }
+                    int receiverId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                    // 文件名称
+                    String fileName = null;
+                    // 文件大小
+                    long fileSize = 0;
+                    if (MsgType.FILE.equals(msgType)) {
+                        // 文件名称长度
+                        bytes = new byte[3];
+                        len = inputStream.read(bytes);
+                        if (len == -1) {
+                            socket.close();
+                            continue;
+                        }
+                        int fileNameLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                        // 文件名称
+                        bytes = new byte[fileNameLength];
+                        len = inputStream.read(bytes);
+                        if (len == -1) {
+                            socket.close();
+                            continue;
+                        }
+                        fileName = new String(bytes, StandardCharsets.UTF_8);
+                        // 文件大小
+                        bytes = new byte[3];
+                        len = inputStream.read(bytes);
+                        if (len == -1) {
+                            socket.close();
+                            continue;
+                        }
+                        fileSize = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
+                    }
+
                     // 消息长度
                     bytes = new byte[3];
                     len = inputStream.read(bytes);
@@ -119,23 +165,36 @@ public class Client {
                         socket.close();
                         continue;
                     }
+                    String data;
                     switch (msgType) {
                         case LOGIN:
-                            Result<UserVO> userResult = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), new TypeReference<Result<UserVO>>() {
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            Result<UserVO> userResult = JSON.parseObject(data, new TypeReference<>() {
                             });
                             if (userResult.getCode() == 200) {
                                 Storage.loginFrame.dispose();
-                                Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
                                 BeanUtil.copyProperties(userResult.getData(), Storage.currentUser);
+                                Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
                             } else {
                                 JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
                             }
                             break;
                         case MESSAGE:
-                            DialogueVO dialogueVO = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8),DialogueVO.class);
-                            Integer senderId = dialogueVO.getSenderId();
+                            data = new String(bytes, StandardCharsets.UTF_8);
                             FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            friendPanel.getDialoguePanel().addFriendMessage(dialogueVO.getContent());
+                            friendPanel.getDialoguePanel().addFriendMessage(data);
+                            break;
+                        case ONLINE:
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            UserVO userVO = JSON.parseObject(data, UserVO.class);
+                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
+                            friendPanel.setOnLine(true);
+                            break;
+                        case OFFLINE:
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            userVO = JSON.parseObject(data, UserVO.class);
+                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
+                            friendPanel.setOnLine(false);
                             break;
                         default:
                     }
@@ -159,6 +218,7 @@ public class Client {
     public void send(ByteData byteData) {
         try {
             outputStream.write(byteData.toByteArray());
+            System.out.println((x++) + " 发送完成-----" + Arrays.toString(byteData.toByteArray()));
         } catch (IOException e) {
             disconnect();
             System.err.println("消息发送失败");

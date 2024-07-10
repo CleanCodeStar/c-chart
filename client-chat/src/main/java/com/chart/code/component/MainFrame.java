@@ -24,7 +24,7 @@ public class MainFrame extends JFrame {
     private final Map<Integer, FriendPanel> friendPanelMap = new TreeMap<>();
 
     public MainFrame(List<UserVO> friends) throws HeadlessException {
-        setTitle("Java聊天室");
+        setTitle("Java聊天室 - " + Storage.currentUser.getNickname());
         setSize(900, 600);
         setLayout(new TableLayout(new double[][]{{10, 240, 0, TableLayout.FILL, 10}, {10, TableLayout.FILL, 10}}));
         getContentPane().setBackground(Constant.BACKGROUND_COLOR);
@@ -61,11 +61,12 @@ public class MainFrame extends JFrame {
                 super.mouseReleased(e);
                 if (Storage.currentFriendPanel != null) {
                     Storage.currentFriendPanel.setBackground(Constant.BACKGROUND_COLOR);
-                    remove(Storage.currentFriendPanel.getDialoguePanel());
+                    Storage.currentFriendPanel.getDialoguePanel().setVisible(false);
                 }
                 friendPanel.setBackground(Constant.CURRENT_COLOR);
                 Storage.currentFriendPanel = friendPanel;
                 DialoguePanel dialoguePanel = Storage.currentFriendPanel.getDialoguePanel();
+                dialoguePanel.setVisible(true);
                 add(dialoguePanel, "3,1,3,1");
                 revalidate();
                 repaint();
