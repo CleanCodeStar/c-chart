@@ -6,7 +6,9 @@ import com.chart.code.Storage;
 import com.chart.code.common.Constant;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
+import com.chart.code.thread.ThreadUtil;
 import com.chart.code.vo.UserVO;
+import com.google.common.io.BaseEncoding;
 import info.clearthought.layout.TableLayout;
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
@@ -112,29 +114,40 @@ public class DialoguePanel extends JPanel {
     }
 
     public void sendFile(File[] files) {
-        Arrays.stream(files).forEach(file -> {
-            System.out.println("开始发送" + file.getName());
-            String fileName = file.getName();
-            long fileSize = file.length();
-            try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-                // 添加文件进度
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                // 从源文件读取内容并写入目标文件
-                while ((bytesRead = bis.read(buffer)) != -1) {
-                    ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+        ThreadUtil.getExecutor().submit(() -> {
+            Arrays.stream(files).forEach(file -> {
+                System.out.println("开始发送" + file.getName());
+                String fileName = file.getName();
+                long fileSize = file.length();
+                try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                    // 添加文件进度
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    // 从源文件读取内容并写入目标文件
+                    while ((bytesRead = bis.read(buffer)) != -1) {
+                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                        try {
+                            Client.getInstance().send(byteData);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    // 文件最后发送结束
+                    ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, new byte[]{});
+                    byteData.setFileSize(BaseEncoding.base16().decode(String.format("%016X", 0)));
                     try {
                         Client.getInstance().send(byteData);
                     } catch (IOException e) {
                         e.printStackTrace();
                         throw new RuntimeException(e);
                     }
+                    addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-                addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            System.out.println("结束发送" + file.getName());
+                System.out.println("结束发送" + file.getName());
+            });
         });
     }
 

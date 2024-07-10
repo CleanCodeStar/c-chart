@@ -71,7 +71,7 @@ public class StartServer {
                                     continue;
                                 }
                                 // 发送者Id
-                                bytes = new byte[3];
+                                bytes = new byte[4];
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
@@ -79,7 +79,7 @@ public class StartServer {
                                 }
                                 int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                                 // 接收者Id
-                                bytes = new byte[3];
+                                bytes = new byte[4];
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
@@ -92,7 +92,7 @@ public class StartServer {
                                 long fileSize = 0;
                                 if (MsgType.FILE.equals(msgType)) {
                                     // 文件名称长度
-                                    bytes = new byte[3];
+                                    bytes = new byte[4];
                                     len = inputStream.read(bytes);
                                     if (len == -1) {
                                         socket.close();
@@ -108,7 +108,7 @@ public class StartServer {
                                     }
                                     fileName = new String(bytes, StandardCharsets.UTF_8);
                                     // 文件大小
-                                    bytes = new byte[3];
+                                    bytes = new byte[8];
                                     len = inputStream.read(bytes);
                                     if (len == -1) {
                                         socket.close();
@@ -117,7 +117,7 @@ public class StartServer {
                                     fileSize = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
                                 }
                                 // 消息长度
-                                bytes = new byte[3];
+                                bytes = new byte[4];
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
@@ -183,19 +183,18 @@ public class StartServer {
                                         }
                                         break;
                                     case FILE:
-                                        System.out.println(fileName + " ------ " + fileSize);
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
-                                        // if (receiverSocket != null) {
-                                        //     try {
-                                        //         OutputStream receiverOutputStream = receiverSocket.getOutputStream();
-                                        //         ByteData byteData = ByteData.buildFile(senderId, receiverId, fileName, fileSize, bytes);
-                                        //         receiverOutputStream.write(byteData.toByteArray());
-                                        //     } catch (Exception e) {
-                                        //         Result<UserVO> result = Result.buildFail("对方不在线！");
-                                        //         ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
-                                        //         outputStream.write(build.toByteArray());
-                                        //     }
-                                        // }
+                                        if (receiverSocket != null) {
+                                            try {
+                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
+                                                ByteData byteData = ByteData.buildFile(senderId, receiverId, fileName, fileSize, bytes);
+                                                receiverOutputStream.write(byteData.toByteArray());
+                                            } catch (Exception e) {
+                                                Result<UserVO> result = Result.buildFail("对方不在线！");
+                                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                                outputStream.write(build.toByteArray());
+                                            }
+                                        }
                                         break;
                                     default:
                                 }

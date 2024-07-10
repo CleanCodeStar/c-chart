@@ -104,7 +104,7 @@ public class Client {
                         continue;
                     }
                     // 发送者Id
-                    bytes = new byte[3];
+                    bytes = new byte[4];
                     len = inputStream.read(bytes);
                     if (len == -1) {
                         socket.close();
@@ -112,7 +112,7 @@ public class Client {
                     }
                     int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                     // 接收者Id
-                    bytes = new byte[3];
+                    bytes = new byte[4];
                     len = inputStream.read(bytes);
                     if (len == -1) {
                         socket.close();
@@ -125,7 +125,7 @@ public class Client {
                     long fileSize = 0;
                     if (MsgType.FILE.equals(msgType)) {
                         // 文件名称长度
-                        bytes = new byte[3];
+                        bytes = new byte[4];
                         len = inputStream.read(bytes);
                         if (len == -1) {
                             socket.close();
@@ -141,7 +141,7 @@ public class Client {
                         }
                         fileName = new String(bytes, StandardCharsets.UTF_8);
                         // 文件大小
-                        bytes = new byte[3];
+                        bytes = new byte[8];
                         len = inputStream.read(bytes);
                         if (len == -1) {
                             socket.close();
@@ -151,7 +151,7 @@ public class Client {
                     }
 
                     // 消息长度
-                    bytes = new byte[3];
+                    bytes = new byte[4];
                     len = inputStream.read(bytes);
                     if (len == -1) {
                         socket.close();
@@ -196,6 +196,15 @@ public class Client {
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
                             friendPanel.setOnLine(false);
                             break;
+                        case FILE:
+                            try {
+
+                            } catch (Exception e) {
+                                Result<UserVO> result = Result.buildFail("对方不在线！");
+                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                outputStream.write(build.toByteArray());
+                            }
+                            break;
                         default:
                     }
                 }
@@ -218,7 +227,7 @@ public class Client {
     public void send(ByteData byteData) {
         try {
             outputStream.write(byteData.toByteArray());
-            System.out.println((x++) + " 发送完成-----" + Arrays.toString(byteData.toByteArray()));
+            outputStream.flush();
         } catch (IOException e) {
             disconnect();
             System.err.println("消息发送失败");
