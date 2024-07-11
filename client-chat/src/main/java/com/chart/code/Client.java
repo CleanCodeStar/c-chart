@@ -8,6 +8,7 @@ import com.chart.code.component.MainFrame;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
+import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.Result;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
@@ -123,7 +124,16 @@ public class Client {
                     String fileName = null;
                     // 文件大小
                     long fileSize = 0;
+                    Long fileId = null;
                     if (MsgType.FILE.equals(msgType)) {
+                        // 文件Id
+                        bytes = new byte[8];
+                        len = inputStream.read(bytes);
+                        if (len == -1) {
+                            socket.close();
+                            continue;
+                        }
+                        fileId = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
                         // 文件名称长度
                         bytes = new byte[4];
                         len = inputStream.read(bytes);
@@ -196,9 +206,17 @@ public class Client {
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
                             friendPanel.setOnLine(false);
                             break;
+                        case SEND_FILE:
+                            // 收到文件发送请求
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            FileMessage fileMessage = JSON.parseObject(data, FileMessage.class);
+                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(fileMessage);
+                            break;
                         case FILE:
                             try {
-
+                                friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                                friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId).updateProgress(bodyLength);
                             } catch (Exception e) {
                                 Result<UserVO> result = Result.buildFail("对方不在线！");
                                 ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));

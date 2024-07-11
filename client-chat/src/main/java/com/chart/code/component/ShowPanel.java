@@ -2,12 +2,15 @@ package com.chart.code.component;
 
 import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
+import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
 import lombok.Getter;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 展示面板
@@ -18,11 +21,13 @@ import java.awt.*;
 public class ShowPanel extends JPanel {
 
     private final JLabel onLine;
+    private final JPanel filesPanel;
+    private final Map<Long, FilePanel> fileMessageMap = new HashMap<>(32);
 
     public ShowPanel(UserVO userVO) {
         setBackground(Constant.BACKGROUND_COLOR);
         setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Color.LIGHT_GRAY));
-        setLayout(new TableLayout(new double[][]{{10, 50, 10, TableLayout.FILL, 0}, {5, 22, 6, 22, TableLayout.FILL, 5}}));
+        setLayout(new TableLayout(new double[][]{{5, 50, 10, TableLayout.FILL, 0}, {5, 22, 6, 22, 10, TableLayout.FILL, 5}}));
         ImageIcon imageIcon = ImageIconUtil.base64ToImageIcon(userVO.getHead());
         if (imageIcon != null) {
             JLabel label = new JLabel(imageIcon);
@@ -43,5 +48,21 @@ public class ShowPanel extends JPanel {
         onLine.setFont(new Font("微软雅黑", Font.PLAIN, 12));
         add(onLine, "3,3,3,3");
         setBackground(Color.WHITE);
+        filesPanel = new JPanel();
+        filesPanel.setBackground(Constant.BACKGROUND_COLOR);
+        filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
+        JScrollPane scrollPane = new JScrollPane(filesPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setBorder(null);
+        add(scrollPane, "1,5,3,5");
+    }
+
+    public void putFileMessage(FileMessage fileMessage) {
+        FilePanel filePanel = new FilePanel(fileMessage);
+        filePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+        filesPanel.add(filePanel);
+        fileMessageMap.put(fileMessage.getId(), filePanel);
+        filePanel.updateUI();
     }
 }

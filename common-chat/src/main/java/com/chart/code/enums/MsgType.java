@@ -19,11 +19,30 @@ public enum MsgType {
      */
     LOGOUT("登出", new byte[]{0x12}),
     /**
+     * 上线
+     */
+    ONLINE("上线", new byte[]{0x22}),
+    /**
+     * /**
+     * 上线
+     */
+    OFFLINE("下线", new byte[]{0x23}),
+    /**
+     * /**
+     * 不在线
+     */
+    ONT_LINE("不在线", new byte[]{0x23}),
+    /**
      * 发送消息
      */
     MESSAGE("消息", new byte[]{0x13}),
     /**
      * 发送文件
+     */
+    SEND_FILE("发送文件", new byte[]{0x14}),
+
+    /**
+     *
      */
     FILE("文件", new byte[]{0x14}),
     /**
@@ -53,21 +72,8 @@ public enum MsgType {
     /**
      * 发送文件进度
      */
-    SEND_FILE_PROGRESS("发送文件进度", new byte[]{0x21}),
-    /**
-     * 上线
-     */
-    ONLINE("上线", new byte[]{0x22}),
-    /**
-     * /**
-     * 上线
-     */
-    OFFLINE("下线", new byte[]{0x23}),
-    /**
-     * /**
-     * 不在线
-     */
-    ONT_LINE("不在线", new byte[]{0x23});
+    SEND_FILE_PROGRESS("发送文件进度", new byte[]{0x21});
+
     /**
      * 消息类型
      */

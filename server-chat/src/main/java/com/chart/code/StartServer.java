@@ -50,32 +50,32 @@ public class StartServer {
                                 int len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 if (!Arrays.equals(new byte[]{0x10}, bytes)) {
                                     // 返回错误
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 // 读取type
                                 bytes = new byte[1];
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 MsgType msgType = MsgType.getMsgType(bytes);
                                 if (msgType == null) {
                                     // 返回错误
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 // 发送者Id
                                 bytes = new byte[4];
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                                 // 接收者Id
@@ -83,20 +83,29 @@ public class StartServer {
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 int receiverId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                                 // 文件名称
                                 String fileName = null;
                                 // 文件大小
                                 long fileSize = 0;
+                                Long fileId = null;
                                 if (MsgType.FILE.equals(msgType)) {
+                                    // 文件Id
+                                    bytes = new byte[8];
+                                    len = inputStream.read(bytes);
+                                    if (len == -1) {
+                                        socket.close();
+                                        continue;
+                                    }
+                                    fileId = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
                                     // 文件名称长度
                                     bytes = new byte[4];
                                     len = inputStream.read(bytes);
                                     if (len == -1) {
                                         socket.close();
-                                        continue;
+                                        throw new RuntimeException("客户端关闭连接");
                                     }
                                     int fileNameLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                                     // 文件名称
@@ -104,7 +113,7 @@ public class StartServer {
                                     len = inputStream.read(bytes);
                                     if (len == -1) {
                                         socket.close();
-                                        continue;
+                                        throw new RuntimeException("客户端关闭连接");
                                     }
                                     fileName = new String(bytes, StandardCharsets.UTF_8);
                                     // 文件大小
@@ -112,7 +121,7 @@ public class StartServer {
                                     len = inputStream.read(bytes);
                                     if (len == -1) {
                                         socket.close();
-                                        continue;
+                                        throw new RuntimeException("客户端关闭连接");
                                     }
                                     fileSize = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
                                 }
@@ -121,7 +130,7 @@ public class StartServer {
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                                 // 消息体
@@ -129,7 +138,7 @@ public class StartServer {
                                 len = inputStream.read(bytes);
                                 if (len == -1) {
                                     socket.close();
-                                    continue;
+                                    throw new RuntimeException("客户端关闭连接");
                                 }
                                 Socket receiverSocket;
                                 switch (msgType) {
@@ -166,6 +175,7 @@ public class StartServer {
                                             outputStream.write(byteData.toByteArray());
                                             // 断开连接
                                             socket.close();
+                                            throw new RuntimeException("客户端关闭连接");
                                         }
                                         break;
                                     case MESSAGE:
@@ -173,16 +183,41 @@ public class StartServer {
                                         if (receiverSocket != null) {
                                             try {
                                                 OutputStream receiverOutputStream = receiverSocket.getOutputStream();
-                                                ByteData byteData = ByteData.buildMsg(senderId, receiverId, bytes);
+                                                ByteData byteData = ByteData.buildMessage(senderId, receiverId, bytes);
                                                 receiverOutputStream.write(byteData.toByteArray());
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
                                                 ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
                                                 outputStream.write(build.toByteArray());
                                             }
+                                        } else {
+                                            Result<UserVO> result = Result.buildFail("对方不在线！");
+                                            ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(build.toByteArray());
+
+                                        }
+                                        break;
+                                    case SEND_FILE:
+                                        receiverSocket = Storage.userSocketsMap.get(receiverId);
+                                        if (receiverSocket != null) {
+                                            try {
+                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
+                                                ByteData byteData = ByteData.build(MsgType.SEND_FILE,senderId, receiverId, bytes);
+                                                receiverOutputStream.write(byteData.toByteArray());
+                                            } catch (Exception e) {
+                                                Result<UserVO> result = Result.buildFail("对方不在线！");
+                                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                                outputStream.write(build.toByteArray());
+                                            }
+                                        } else {
+                                            Result<UserVO> result = Result.buildFail("对方不在线！");
+                                            ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(build.toByteArray());
+
                                         }
                                         break;
                                     case FILE:
+                                        System.out.println("接收文件" + fileName + "     " + fileSize + "   " + bodyLength + "  " + bytes.length);
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
                                             try {
@@ -192,14 +227,20 @@ public class StartServer {
                                                 receiverOutputStream.flush();
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
-                                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                                ByteData build = ByteData.build(MsgType.ONT_LINE, senderId, receiverId, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
                                                 outputStream.write(build.toByteArray());
                                             }
-                                        }else {
-                                            System.err.println("没得到socket");
+                                        } else {
+                                            Result<UserVO> result = Result.buildFail("对方不在线！");
+                                            ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(build.toByteArray());
+
                                         }
                                         break;
                                     default:
+                                        Result<UserVO> result = Result.buildFail("对方不在线！");
+                                        ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                        outputStream.write(build.toByteArray());
                                 }
                             }
                         } catch (Exception e) {

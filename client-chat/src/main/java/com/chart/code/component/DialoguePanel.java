@@ -1,12 +1,16 @@
 package com.chart.code.component;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.lang.Snowflake;
+import com.alibaba.fastjson.JSON;
 import com.chart.code.Client;
 import com.chart.code.Storage;
 import com.chart.code.common.Constant;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
+import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
+import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
 import info.clearthought.layout.TableLayout;
@@ -17,6 +21,7 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.jdesktop.swingx.JXTextArea;
 
 import javax.swing.*;
@@ -42,7 +47,7 @@ public class DialoguePanel extends JPanel {
 
     public DialoguePanel(UserVO userVO) {
         this.userVO = userVO;
-        setLayout(new TableLayout(new double[][]{{10, TableLayout.FILL, 10, 120, 10}, {10, TableLayout.FILL, 34, 120, 34}}));
+        setLayout(new TableLayout(new double[][]{{10, TableLayout.FILL, 0, 245, 0}, {10, TableLayout.FILL, 34, 120, 34}}));
         setBackground(Constant.BACKGROUND_COLOR);
         // 消息区
         jfxPanel = new JFXPanel();
@@ -103,7 +108,7 @@ public class DialoguePanel extends JPanel {
     public void sendMessage() {
         try {
             if (!Storage.currentUser.getId().equals(userVO.getId())) {
-                ByteData byteData = ByteData.buildMsg(Storage.currentUser.getId(), userVO.getId(), inputTextArea.getText().getBytes(StandardCharsets.UTF_8));
+                ByteData byteData = ByteData.buildMessage(Storage.currentUser.getId(), userVO.getId(), inputTextArea.getText().getBytes(StandardCharsets.UTF_8));
                 Client.getInstance().send(byteData);
             }
             addOwnMessage(inputTextArea.getText());
@@ -116,37 +121,51 @@ public class DialoguePanel extends JPanel {
     public void sendFile(File[] files) {
         ThreadUtil.getExecutor().submit(() -> {
             Arrays.stream(files).forEach(file -> {
-                System.out.println("开始发送" + file.getName());
-                String fileName = file.getName();
-                long fileSize = file.length();
-                try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-                    // 添加文件进度
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    // 从源文件读取内容并写入目标文件
-                    while ((bytesRead = bis.read(buffer)) != -1) {
-                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
-                        try {
-                            Client.getInstance().send(byteData);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    // 文件最后发送结束
-                    ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, new byte[]{});
-                    byteData.setFileSize(BaseEncoding.base16().decode(String.format("%016X", 0)));
-                    try {
-                        Client.getInstance().send(byteData);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        throw new RuntimeException(e);
-                    }
-                    addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
+                FileMessage fileMessage = new FileMessage();
+                fileMessage.setId(new Snowflake(0, 0).nextId());
+                fileMessage.setFileName(file.getName());
+                fileMessage.setFileSize(file.length());
+                try {
+                    Client instance = Client.getInstance();
+                    ByteData byteData = ByteData.build(MsgType.SEND_FILE, Storage.currentUser.getId(), userVO.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
+                    instance.send(byteData);
+                    Storage.FILE_MESSAGE_MAP.put(fileMessage.getId(), fileMessage);
                 } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println("发送失败" + file.getName());
                     throw new RuntimeException(e);
                 }
-                System.out.println("结束发送" + file.getName());
+
+
+
+                // System.out.println("开始发送" + file.getName());
+                // String fileName = file.getName();
+                // long fileSize = file.length();
+                // try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                //     // 添加文件进度
+                //     byte[] buffer = new byte[1024];
+                //     int bytesRead;
+                //     // 从源文件读取内容并写入目标文件
+                //     try {
+                //         Client instance = Client.getInstance();
+                //         while ((bytesRead = bis.read(buffer)) != -1) {
+                //             ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                //             instance.send(byteData);
+                //         }
+                //         // 文件最后发送结束
+                //         ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), userVO.getId(), fileName, fileSize, new byte[]{});
+                //         byteData.setFileSize(BaseEncoding.base16().decode(String.format("%016X", 0)));
+                //         instance.send(byteData);
+                //     } catch (IOException e) {
+                //         e.printStackTrace();
+                //         System.out.println("发送失败" + file.getName());
+                //         throw new RuntimeException(e);
+                //     }
+                //     addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
+                // } catch (IOException e) {
+                //     throw new RuntimeException(e);
+                // }
+                // System.out.println("结束发送" + file.getName());
             });
         });
     }
@@ -161,11 +180,32 @@ public class DialoguePanel extends JPanel {
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
             // 自己
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_MESSAGE_JS, currentUser.getHead(), message));
+            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_MESSAGE_JS, currentUser.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
             // // 时间
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // // 朋友
             // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
+            // 自动滚动到底部
+            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
+        });
+    }
+
+    /**
+     * 好友发送的消息
+     *
+     * @param message
+     */
+    public void addFriendMessage(String message) {
+        // 显示HTML内容
+        boolean showing = jfxPanel.isShowing();
+        System.out.println(showing);
+        Platform.runLater(() -> {
+            // // 自己
+            // engine.executeScript(String.format(Constant.DIALOGUE_OWN_JS, userVO.getHead(), message));
+            // // 时间
+            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
+            // 朋友
+            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_MESSAGE_JS, userVO.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
         });
@@ -189,8 +229,6 @@ public class DialoguePanel extends JPanel {
             webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_FILE_JS, currentUser.getHead(), fileName, fileSize, icon));
             // // 时间
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            // // 朋友
-            // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
         });
@@ -220,47 +258,8 @@ public class DialoguePanel extends JPanel {
         });
     }
 
-    /**
-     * 好友发送的消息
-     *
-     * @param message
-     */
-    public void addFriendMessage(String message) {
-        // 显示HTML内容
-        boolean showing = jfxPanel.isShowing();
-        System.out.println(showing);
-        Platform.runLater(() -> {
-            // // 自己
-            // engine.executeScript(String.format(Constant.DIALOGUE_OWN_JS, userVO.getHead(), message));
-            // // 时间
-            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            // 朋友
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_MESSAGE_JS, userVO.getHead(), message));
-            // 自动滚动到底部
-            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
-        });
-        // // jPanel.setPreferredSize(new Dimension(0, 0));
-        // // jPanel.setMinimumSize(new Dimension(0, 0));
-        // jPanel.setLayout((new TableLayout(new double[][]{{30, 10, TableLayout.FILL, TableLayout.FILL, TableLayout.FILL, 10, 30}, {30, TableLayout.MINIMUM}})));
-        // ImageIcon imageIcon = ImageIconUtil.base64ToImageIcon(userVO.getHead());
-        // JLabel head = new JLabel(imageIcon);
-        // head.setMinimumSize(new Dimension(30, 30));
-        // head.setPreferredSize(new Dimension(30, 30));
-        // jPanel.add(head, "6,0,6,0");
-        //
-        // JXTextArea textArea = new JXTextArea();
-        // textArea.setLineWrap(true);
-        // textArea.setText(message);
-        // jPanel.add(textArea, "3,0,4,1");
-        // // jPanel.add(textArea, "3,1,4,2");
-        // if (panel.getComponentCount() % 2 == 0) {
-        //     panel.setPreferredSize(new Dimension(0, 0));
-        //     panel.setMinimumSize(new Dimension(0, 0));
-        // }else{
-        //     panel.setPreferredSize(null);
-        //     panel.setMinimumSize(null);
-        // }
-        // panel.updateUI();
-    }
+    public void putFileMessage(FileMessage fileMessage) {
 
+
+    }
 }

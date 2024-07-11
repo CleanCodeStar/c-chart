@@ -20,7 +20,8 @@ public class SQLiteService {
             // 加载 SQLite JDBC 驱动
             Class.forName("org.sqlite.JDBC");
             // SQLite 数据库文件的路径
-            String dbUrl = "jdbc:sqlite:E:\\IdeaProjects\\c-chat\\c-chat.db";
+            // String dbUrl = "jdbc:sqlite:E:\\IdeaProjects\\c-chat\\c-chat.db";
+            String dbUrl = "jdbc:sqlite:D:\\IdeaProject\\c-chat\\c-chat.db";
             // 建立连接
             connection = DriverManager.getConnection(dbUrl);
         } catch (ClassNotFoundException e) {

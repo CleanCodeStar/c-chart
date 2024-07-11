@@ -1,6 +1,7 @@
 package com.chart.code.component;
 
 import com.chart.code.common.ImageIconUtil;
+import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
 import lombok.Getter;
