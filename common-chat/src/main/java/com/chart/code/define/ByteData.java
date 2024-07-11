@@ -140,12 +140,13 @@ public class ByteData {
      * @param body       消息体
      * @return ByteData
      */
-    public static ByteData buildFile(Integer senderId, Integer receiverId, String fileName, long fileSize, byte[] body) {
+    public static ByteData buildFile(Integer senderId, Integer receiverId,Long fileId, String fileName, long fileSize, byte[] body) {
         ByteData byteData = new ByteData();
         byteData.header = new byte[]{0x10};
         byteData.type = MsgType.FILE.getType();
         byteData.senderId = BaseEncoding.base16().decode(String.format("%08X", senderId));
         byteData.receiverId = BaseEncoding.base16().decode(String.format("%08X", receiverId));
+        byteData.fileId = BaseEncoding.base16().decode(String.format("%016X", fileId));
         byteData.fileName = fileName.getBytes(StandardCharsets.UTF_8);
         byteData.fileNameLength = BaseEncoding.base16().decode(String.format("%08X", byteData.fileName.length));
         byteData.fileSize = BaseEncoding.base16().decode(String.format("%016X", fileSize));

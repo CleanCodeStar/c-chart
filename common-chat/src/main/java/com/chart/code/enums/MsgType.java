@@ -21,58 +21,58 @@ public enum MsgType {
     /**
      * 上线
      */
-    ONLINE("上线", new byte[]{0x22}),
+    ONLINE("上线", new byte[]{0x13}),
     /**
      * /**
      * 上线
      */
-    OFFLINE("下线", new byte[]{0x23}),
+    OFFLINE("下线", new byte[]{0x14}),
     /**
      * /**
      * 不在线
      */
-    ONT_LINE("不在线", new byte[]{0x23}),
+    ONT_LINE("不在线", new byte[]{0x15}),
     /**
      * 发送消息
      */
-    MESSAGE("消息", new byte[]{0x13}),
+    MESSAGE("消息", new byte[]{0x16}),
     /**
      * 发送文件
      */
-    SEND_FILE("发送文件", new byte[]{0x14}),
+    SEND_FILE("发送文件", new byte[]{0x17}),
 
     /**
      *
      */
-    FILE("文件", new byte[]{0x14}),
+    FILE("文件", new byte[]{0x18}),
     /**
      * 接收文件
      */
-    RECEIVE_FILE("接收文件", new byte[]{0x15}),
+    RECEIVE_FILE("接收文件", new byte[]{0x19}),
     /**
      * 接收文件完成
      */
-    RECEIVE_FILE_FINISH("接收文件完成", new byte[]{0x16}),
+    RECEIVE_FILE_FINISH("接收文件完成", new byte[]{0x20}),
     /**
      * 接收文件错误
      */
-    RECEIVE_FILE_ERROR("接收文件错误", new byte[]{0x17}),
+    RECEIVE_FILE_ERROR("接收文件错误", new byte[]{0x21}),
     /**
      * 接收文件进度
      */
-    RECEIVE_FILE_PROGRESS("接收文件进度", new byte[]{0x18}),
+    RECEIVE_FILE_PROGRESS("接收文件进度", new byte[]{0x22}),
     /**
      * 发送文件完成
      */
-    SEND_FILE_FINISH("发送文件完成", new byte[]{0x19}),
+    SEND_FILE_FINISH("发送文件完成", new byte[]{0x23}),
     /**
      * 发送文件错误
      */
-    SEND_FILE_ERROR("发送文件错误", new byte[]{0x20}),
+    SEND_FILE_ERROR("发送文件错误", new byte[]{0x24}),
     /**
      * 发送文件进度
      */
-    SEND_FILE_PROGRESS("发送文件进度", new byte[]{0x21});
+    SEND_FILE_PROGRESS("发送文件进度", new byte[]{0x25});
 
     /**
      * 消息类型

@@ -4,8 +4,8 @@ import com.chart.code.component.FriendPanel;
 import com.chart.code.component.LoginFrame;
 import com.chart.code.component.MainFrame;
 import com.chart.code.define.User;
-import com.chart.code.vo.FileMessage;
 
+import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,5 +34,5 @@ public class Storage {
     /**
      * 文件发送缓存
      */
-    public static final Map<Long, FileMessage> FILE_MESSAGE_MAP = new ConcurrentHashMap<>(128);
+    public static final Map<Long, File> FILE_MESSAGE_MAP = new ConcurrentHashMap<>(128);
 }

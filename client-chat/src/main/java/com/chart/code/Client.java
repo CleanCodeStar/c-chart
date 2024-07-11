@@ -3,9 +3,11 @@ package com.chart.code;
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.chart.code.component.FilePanel;
 import com.chart.code.component.FriendPanel;
 import com.chart.code.component.MainFrame;
 import com.chart.code.define.ByteData;
+import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
 import com.chart.code.vo.FileMessage;
@@ -14,9 +16,7 @@ import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
 
 import javax.swing.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -176,6 +176,7 @@ public class Client {
                         continue;
                     }
                     String data;
+                    FileMessage fileMessage;
                     switch (msgType) {
                         case LOGIN:
                             data = new String(bytes, StandardCharsets.UTF_8);
@@ -209,9 +210,18 @@ public class Client {
                         case SEND_FILE:
                             // 收到文件发送请求
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            FileMessage fileMessage = JSON.parseObject(data, FileMessage.class);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(fileMessage);
+                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.FRIEND, fileMessage);
+                            break;
+                        case RECEIVE_FILE:
+                            // 收到文件发送请求
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
+                            File file = Storage.FILE_MESSAGE_MAP.get(fileMessage.getId());
+                            sendFile(senderId,fileMessage.getId(), file);
                             break;
                         case FILE:
                             try {
@@ -230,10 +240,47 @@ public class Client {
                 try {
                     Client.getInstance().disconnect();
                 } catch (IOException ex) {
+                    ex.printStackTrace();
                     throw new RuntimeException(ex);
                 }
+                e.printStackTrace();
                 System.err.println("连接断开,线程结束");
             }
+        });
+    }
+
+    public void sendFile(Integer friendId, Long fileId, File file) {
+        ThreadUtil.getExecutor().submit(() -> {
+            System.out.println("开始发送" + file.getName());
+            String fileName = file.getName();
+            long fileSize = file.length();
+            try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                // 添加文件进度
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                // 从源文件读取内容并写入目标文件
+                try {
+                    FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(friendId);
+                    FilePanel filePanel = friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
+                    while ((bytesRead = bis.read(buffer)) != -1) {
+                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId,fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                        instance.send(byteData);
+                        filePanel.updateProgress(bytesRead);
+                    }
+                    // // 文件最后发送结束
+                    // ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), senderId, fileName, fileSize, new byte[]{});
+                    // byteData.setFileSize(BaseEncoding.base16().decode(String.format("%016X", 0)));
+                    // instance.send(byteData);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println("发送失败" + file.getName());
+                    throw new RuntimeException(e);
+                }
+                // addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println("结束发送" + file.getName());
         });
     }
 

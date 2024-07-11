@@ -216,13 +216,31 @@ public class StartServer {
 
                                         }
                                         break;
-                                    case FILE:
-                                        System.out.println("接收文件" + fileName + "     " + fileSize + "   " + bodyLength + "  " + bytes.length);
+                                    case RECEIVE_FILE:
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
                                             try {
                                                 OutputStream receiverOutputStream = receiverSocket.getOutputStream();
-                                                ByteData byteData = ByteData.buildFile(senderId, receiverId, fileName, fileSize, bytes);
+                                                ByteData byteData = ByteData.build(MsgType.RECEIVE_FILE,senderId, receiverId, bytes);
+                                                receiverOutputStream.write(byteData.toByteArray());
+                                            } catch (Exception e) {
+                                                Result<UserVO> result = Result.buildFail("对方不在线！");
+                                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                                outputStream.write(build.toByteArray());
+                                            }
+                                        } else {
+                                            Result<UserVO> result = Result.buildFail("对方不在线！");
+                                            ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                                            outputStream.write(build.toByteArray());
+
+                                        }
+                                        break;
+                                    case FILE:
+                                        receiverSocket = Storage.userSocketsMap.get(receiverId);
+                                        if (receiverSocket != null) {
+                                            try {
+                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
+                                                ByteData byteData = ByteData.buildFile(senderId, receiverId,fileId, fileName, fileSize, bytes);
                                                 receiverOutputStream.write(byteData.toByteArray());
                                                 receiverOutputStream.flush();
                                             } catch (Exception e) {

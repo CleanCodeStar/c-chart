@@ -1,5 +1,7 @@
 package com.chart.code.common;
 
+import cn.hutool.core.lang.Snowflake;
+
 import java.awt.*;
 
 /**
@@ -12,6 +14,10 @@ public class Constant {
      * 背景颜色
      */
     public final static Color BACKGROUND_COLOR = Color.WHITE;
+    /**
+     * 雪花算法
+     */
+    public final static Snowflake SNOWFLAKE = new Snowflake(0, 0);
     /**
      * 现调颜色
      */
