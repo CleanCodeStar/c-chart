@@ -48,6 +48,7 @@ public class DialoguePanel extends JPanel {
         // 消息区
         jfxPanel = new JFXPanel();
         jfxPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
+        add(jfxPanel, "1,1,1,1");
         Platform.runLater(() -> {
             webView = new WebView();
             WebEngine engine = webView.getEngine();
@@ -55,7 +56,6 @@ public class DialoguePanel extends JPanel {
             // 将 WebView 放入 JFXPanel 中
             jfxPanel.setScene(new Scene(webView));
         });
-        add(jfxPanel, "1,1,1,1");
         // 操作区
         JPanel operationPanel = new JPanel();
         operationPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.LIGHT_GRAY));
@@ -98,6 +98,7 @@ public class DialoguePanel extends JPanel {
         // 好友信息展示区
         showPanel = new ShowPanel(friend);
         add(showPanel, "3,1,3,4");
+        updateUI();
     }
 
     /**
@@ -153,6 +154,7 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
+            jfxPanel.updateUI();
         });
     }
 
@@ -174,6 +176,7 @@ public class DialoguePanel extends JPanel {
             webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_MESSAGE_JS, friend.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
+            jfxPanel.updateUI();
         });
     }
 
@@ -197,6 +200,7 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
+            jfxPanel.updateUI();
         });
     }
 
@@ -221,11 +225,7 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
             // 自动滚动到底部
             webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
+            jfxPanel.updateUI();
         });
-    }
-
-    public void putFileMessage(FileMessage fileMessage) {
-
-
     }
 }

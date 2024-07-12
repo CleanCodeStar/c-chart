@@ -30,6 +30,7 @@ public class Constant {
             "        .main {" +
             "            display: flex;" +
             "            flex-flow: column;" +
+            "            font-size: 14px;" +
             "        }" +
             "        .time {" +
             "            display: flex;" +
@@ -106,7 +107,7 @@ public class Constant {
             "            min-height: 60px;" +
             "        }" +
             "        .file-name {" +
-            "            font-size: 16px;" +
+            "            font-size: 14px;" +
             "            font-weight: bold;" +
             "            width: 100%;" +
             "            word-wrap: anywhere;" +

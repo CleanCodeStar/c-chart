@@ -188,6 +188,9 @@ public class FilePanel extends JPanel {
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
+                Storage.mainFrame.getFriendPanelMap().get(friend.getId()).getDialoguePanel().addFriendFile(fileMessage.getFileName(), FileUtils.byteCountToDisplaySize(fileMessage.getFileSize()));
+            } else {
+                Storage.mainFrame.getFriendPanelMap().get(friend.getId()).getDialoguePanel().addOwnFile(fileMessage.getFileName(), FileUtils.byteCountToDisplaySize(fileMessage.getFileSize()));
             }
             Container parent = getParent();
             parent.remove(this);
