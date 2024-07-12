@@ -6,6 +6,7 @@ import com.alibaba.fastjson.TypeReference;
 import com.chart.code.component.FilePanel;
 import com.chart.code.component.FriendPanel;
 import com.chart.code.component.MainFrame;
+import com.chart.code.component.ShowPanel;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
@@ -77,106 +78,81 @@ public class Client {
     public void receive() {
         ThreadUtil.getExecutor().submit(() -> {
             try {
-                System.out.println("接收到连接信息");
                 while (true) {
+                    long dataSize = 0;
                     // 读取header
-                    byte[] bytes = new byte[1];
-                    int len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    byte[] bytes = getBytes(1);
                     if (!Arrays.equals(new byte[]{0x10}, bytes)) {
                         // 返回错误
                         socket.close();
                         continue;
                     }
+                    dataSize += bytes.length;
+                    // System.out.print("读取header长度:" + bytes.length+" / ");
                     // 读取type
-                    bytes = new byte[1];
-                    len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    bytes = getBytes(1);
                     MsgType msgType = MsgType.getMsgType(bytes);
                     if (msgType == null) {
                         // 返回错误
                         socket.close();
                         continue;
                     }
+                    dataSize += bytes.length;
+                    // System.out.print("读取type长度:" + bytes.length+" / ");
                     // 发送者Id
-                    bytes = new byte[4];
-                    len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    bytes = getBytes(4);
                     int senderId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                    dataSize += bytes.length;
+                    // System.out.print("读取senderId长度:" + bytes.length+" / ");
+
                     // 接收者Id
-                    bytes = new byte[4];
-                    len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    bytes = getBytes(4);
                     int receiverId = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                    dataSize += bytes.length;
+                    // System.out.print("读取接收者Id长度:" + bytes.length+" / ");
                     // 文件名称
                     String fileName = null;
                     // 文件大小
                     long fileSize = 0;
-                    Long fileId = null;
-                    if (MsgType.FILE.equals(msgType)) {
+                    Long fileId;
+                    if (MsgType.FILE_TRANSFERRING.equals(msgType)) {
                         // 文件Id
-                        bytes = new byte[8];
-                        len = inputStream.read(bytes);
-                        if (len == -1) {
-                            socket.close();
-                            continue;
-                        }
+                        bytes = getBytes(8);
                         fileId = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
+                        dataSize += bytes.length;
+                        // System.out.print("读取文件Id长度:" + bytes.length+" / ");
                         // 文件名称长度
-                        bytes = new byte[4];
-                        len = inputStream.read(bytes);
-                        if (len == -1) {
-                            socket.close();
-                            continue;
-                        }
+                        bytes = getBytes(4);
                         int fileNameLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                        dataSize += bytes.length;
+                        // System.out.print("读取文件名称长度长度:" + bytes.length+" / ");
                         // 文件名称
-                        bytes = new byte[fileNameLength];
-                        len = inputStream.read(bytes);
-                        if (len == -1) {
-                            socket.close();
-                            continue;
-                        }
+                        bytes = getBytes(fileNameLength);
                         fileName = new String(bytes, StandardCharsets.UTF_8);
+                        dataSize += bytes.length;
+                        // System.out.print("读取文件名称长度:" + bytes.length+" / ");
                         // 文件大小
-                        bytes = new byte[8];
-                        len = inputStream.read(bytes);
-                        if (len == -1) {
-                            socket.close();
-                            continue;
-                        }
+                        bytes = getBytes(8);
                         fileSize = Long.parseLong(BaseEncoding.base16().encode(bytes), 16);
+                        dataSize += bytes.length;
+                        // System.out.print("读取文件大小长度:" + bytes.length+" / ");
+                    } else {
+                        fileId = null;
                     }
 
                     // 消息长度
-                    bytes = new byte[4];
-                    len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    bytes = getBytes(4);
                     int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
+                    dataSize += bytes.length;
+                    // System.out.print("读取消息长度长度:" + bytes.length+" / ");
                     // 消息体
-                    bytes = new byte[bodyLength];
-                    len = inputStream.read(bytes);
-                    if (len == -1) {
-                        socket.close();
-                        continue;
-                    }
+                    bytes = getBytes(bodyLength);
+                    dataSize += bytes.length;
+                    // System.out.print("读取消息体长度:" + bytes.length+" / ");
+                    // System.out.println(senderId + "  接收到消息总长度" + dataSize);
                     String data;
                     FileMessage fileMessage;
+                    File file;
                     switch (msgType) {
                         case LOGIN:
                             data = new String(bytes, StandardCharsets.UTF_8);
@@ -207,31 +183,54 @@ public class Client {
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
                             friendPanel.setOnLine(false);
                             break;
-                        case SEND_FILE:
-                            // 收到文件发送请求
+                        case TRANSFERRING_FILE_REQUEST:
+                            // 发送文件请求
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                             friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.FRIEND, fileMessage);
                             break;
-                        case RECEIVE_FILE:
-                            // 收到文件发送请求
+                        case AGREE_RECEIVE_FILE:
+                            // 同意接收文件
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
                             friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                             friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
-                            File file = Storage.FILE_MESSAGE_MAP.get(fileMessage.getId());
-                            sendFile(senderId,fileMessage.getId(), file);
+                            file = Storage.FILE_SEND_MAP.get(fileMessage.getId());
+                            sendFile(senderId, fileMessage.getId(), file);
                             break;
-                        case FILE:
+                        case REFUSE_RECEIVE_FILE:
+                            // 拒绝接收文件
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被拒绝", "提示", JOptionPane.ERROR_MESSAGE);
+                            break;
+                        case FILE_TRANSFERRING:
+                            // 文件传输中
                             try {
+                                BufferedOutputStream fileOutputStream = Storage.FILE_OUTPUTSTREAM_MAP.get(fileId);
+                                if (fileOutputStream == null) {
+                                    fileOutputStream = new BufferedOutputStream(new FileOutputStream(Storage.FILE_RECEIVE_MAP.get(fileId)));
+                                    Storage.FILE_OUTPUTSTREAM_MAP.put(fileId, fileOutputStream);
+                                }
+                                // System.out.println(senderId + "  接收到文件大小" + fileSize + " 文件名称 " + fileName + " 文件Id " + fileId + " 本次文件数据包 " + bodyLength);
                                 friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                                 friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId).updateProgress(bodyLength);
+                                fileOutputStream.write(bytes);
+                                // 取出输出文件流并向输出流写入数据
                             } catch (Exception e) {
-                                Result<UserVO> result = Result.buildFail("对方不在线！");
-                                ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
-                                outputStream.write(build.toByteArray());
+                                System.err.println(fileName + " 文件保存被迫中断！");
                             }
+                            break;
+                        case CANCEL_FILE_TRANSFER:
+                            // 取消文件传输
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                            ShowPanel showPanel = friendPanel.getDialoguePanel().getShowPanel();
+                            FilePanel filePanel = showPanel.getFileMessageMap().get(fileMessage.getId());
+                            filePanel.cancelFile();
+                            JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
                         default:
                     }
@@ -243,44 +242,52 @@ public class Client {
                     ex.printStackTrace();
                     throw new RuntimeException(ex);
                 }
-                e.printStackTrace();
                 System.err.println("连接断开,线程结束");
             }
         });
     }
 
+    public byte[] getBytes(int length) throws IOException {
+        byte[] bytes = new byte[length];
+        int len = inputStream.read(bytes);
+        if (len == -1) {
+            socket.close();
+            throw new IOException("读取失败");
+        }
+        if (len == length) {
+            return bytes;
+        }
+        // System.err.println( "一次性没读够长度");
+        byte[] bytes2 = getBytes(length - len);
+        System.arraycopy(bytes2, 0, bytes, len, bytes2.length);
+        return bytes;
+    }
+
     public void sendFile(Integer friendId, Long fileId, File file) {
         ThreadUtil.getExecutor().submit(() -> {
-            System.out.println("开始发送" + file.getName());
             String fileName = file.getName();
             long fileSize = file.length();
             try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                Storage.FILE_INPUTSTREAM_MAP.put(fileId, bis);
+                System.out.println("开始发送" + file.getName());
                 // 添加文件进度
-                byte[] buffer = new byte[4096];
+                byte[] buffer = new byte[8192];
                 int bytesRead;
                 // 从源文件读取内容并写入目标文件
                 try {
-                    FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(friendId);
-                    FilePanel filePanel = friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
+                    FilePanel filePanel = Storage.mainFrame.getFriendPanelMap().get(friendId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
                     while ((bytesRead = bis.read(buffer)) != -1) {
-                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId,fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId, fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
                         instance.send(byteData);
                         filePanel.updateProgress(bytesRead);
                     }
-                    // // 文件最后发送结束
-                    // ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), senderId, fileName, fileSize, new byte[]{});
-                    // byteData.setFileSize(BaseEncoding.base16().decode(String.format("%016X", 0)));
-                    // instance.send(byteData);
+                    System.out.println("结束发送" + file.getName());
                 } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println("发送失败" + file.getName());
-                    throw new RuntimeException(e);
+                    System.err.println("发送失败或被取消  " + file.getName());
                 }
-                // addOwnFile(fileName, FileUtils.byteCountToDisplaySize(fileSize));
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.err.println("发送失败" + file.getName());
             }
-            System.out.println("结束发送" + file.getName());
         });
     }
 
@@ -292,9 +299,8 @@ public class Client {
     public void send(ByteData byteData) {
         try {
             outputStream.write(byteData.toByteArray());
-            outputStream.flush();
+            // System.out.println("消息发送总长度：" + byteData.toByteArray().length);
         } catch (IOException e) {
-            e.printStackTrace();
             disconnect();
             System.err.println("消息发送失败");
             throw new RuntimeException(e);

@@ -143,7 +143,7 @@ public class ByteData {
     public static ByteData buildFile(Integer senderId, Integer receiverId,Long fileId, String fileName, long fileSize, byte[] body) {
         ByteData byteData = new ByteData();
         byteData.header = new byte[]{0x10};
-        byteData.type = MsgType.FILE.getType();
+        byteData.type = MsgType.FILE_TRANSFERRING.getType();
         byteData.senderId = BaseEncoding.base16().decode(String.format("%08X", senderId));
         byteData.receiverId = BaseEncoding.base16().decode(String.format("%08X", receiverId));
         byteData.fileId = BaseEncoding.base16().decode(String.format("%016X", fileId));

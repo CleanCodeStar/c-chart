@@ -37,42 +37,26 @@ public enum MsgType {
      */
     MESSAGE("消息", new byte[]{0x16}),
     /**
-     * 发送文件
+     * 传输文件请求
      */
-    SEND_FILE("发送文件", new byte[]{0x17}),
-
+    TRANSFERRING_FILE_REQUEST("传输文件请求", new byte[]{0x17}),
     /**
-     *
+     * 文件传输中
      */
-    FILE("文件", new byte[]{0x18}),
+    FILE_TRANSFERRING("文件传输中", new byte[]{0x18}),
     /**
-     * 接收文件
+     * 同意接收文件
      */
-    RECEIVE_FILE("接收文件", new byte[]{0x19}),
+    AGREE_RECEIVE_FILE("同意接收文件", new byte[]{0x19}),
     /**
-     * 接收文件完成
+     * 拒绝接收文件
      */
-    RECEIVE_FILE_FINISH("接收文件完成", new byte[]{0x20}),
+    REFUSE_RECEIVE_FILE("拒绝接收文件", new byte[]{0x20}),
     /**
-     * 接收文件错误
+     * 取消文件传输
      */
-    RECEIVE_FILE_ERROR("接收文件错误", new byte[]{0x21}),
-    /**
-     * 接收文件进度
-     */
-    RECEIVE_FILE_PROGRESS("接收文件进度", new byte[]{0x22}),
-    /**
-     * 发送文件完成
-     */
-    SEND_FILE_FINISH("发送文件完成", new byte[]{0x23}),
-    /**
-     * 发送文件错误
-     */
-    SEND_FILE_ERROR("发送文件错误", new byte[]{0x24}),
-    /**
-     * 发送文件进度
-     */
-    SEND_FILE_PROGRESS("发送文件进度", new byte[]{0x25});
+    CANCEL_FILE_TRANSFER("取消文件传输", new byte[]{0x21}),
+    ;
 
     /**
      * 消息类型

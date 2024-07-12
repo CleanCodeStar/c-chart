@@ -125,11 +125,10 @@ public class DialoguePanel extends JPanel {
                 fileMessage.setFileSize(file.length());
                 try {
                     Client instance = Client.getInstance();
-                    ByteData byteData = ByteData.build(MsgType.SEND_FILE, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
+                    ByteData byteData = ByteData.build(MsgType.TRANSFERRING_FILE_REQUEST, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
                     instance.send(byteData);
-                    Storage.FILE_MESSAGE_MAP.put(fileMessage.getId(), file);
+                    Storage.FILE_SEND_MAP.put(fileMessage.getId(), file);
                 } catch (IOException e) {
-                    e.printStackTrace();
                     System.out.println("发送失败" + file.getName());
                     throw new RuntimeException(e);
                 }

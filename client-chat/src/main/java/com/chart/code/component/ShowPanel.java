@@ -63,10 +63,14 @@ public class ShowPanel extends JPanel {
     }
 
     public void putFileMessage(FilePanelType filePanelType, FileMessage fileMessage) {
-        FilePanel filePanel = new FilePanel(filePanelType,friend,fileMessage);
+        FilePanel filePanel = new FilePanel(filePanelType, friend, fileMessage);
         filePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
         filesPanel.add(filePanel);
         fileMessageMap.put(fileMessage.getId(), filePanel);
         filePanel.updateUI();
+    }
+
+    public void removeFilePanel(Long fileId) {
+        filesPanel.remove(fileMessageMap.remove(fileId));
     }
 }
