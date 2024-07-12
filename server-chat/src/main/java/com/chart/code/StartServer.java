@@ -33,6 +33,7 @@ public class StartServer {
     public static void main(String[] args) throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(8199)) {
             System.out.println("服务启动成功,等待客户端连接");
+            SQLiteService sqLiteService = new SQLiteService();
             while (true) {
                 Socket socket = serverSocket.accept();
                 ThreadUtil.addRunnable(new Runnable() {
@@ -102,42 +103,18 @@ public class StartServer {
                                 dataSize += bytes.length;
                                 // System.out.println((user != null ? user.getNickname() : "") + " 接收到的消息长度：" + dataSize);
                                 Socket receiverSocket;
+                                User currentUser;
                                 switch (msgType) {
                                     case LOGIN:
                                         UserDTO user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
                                         // 判断登录信息，然后返回消息
-                                        SQLiteService sqLiteService = new SQLiteService();
-                                        User currentUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
-                                        if (currentUser != null) {
-                                            this.user = currentUser;
-                                            System.out.println(this.user.getNickname() + "  登录成功");
-                                            UserVO userVO = BeanUtil.copyProperties(currentUser, UserVO.class);
-                                            List<UserVO> users = sqLiteService.queryAll();
-                                            Set<Integer> onLineIds = new HashSet<>(Storage.userSocketsMap.keySet());
-                                            onLineIds.add(this.user.getId());
-                                            users = users.stream().peek(value -> value.setOnLine(onLineIds.contains(value.getId()))).collect(Collectors.toList());
-                                            userVO.setFriends(users);
-                                            Result<UserVO> result = Result.buildOk("登录成功", userVO);
-                                            ByteData byteData = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
-                                            send(byteData);
-                                            // 发送给所有好友上线信息
-                                            Storage.userSocketsMap.values().forEach(userSocket -> {
-                                                try {
-                                                    ByteData build = ByteData.build(MsgType.ONLINE, JSON.toJSONString(userVO).getBytes(StandardCharsets.UTF_8));
-                                                    userSocket.getOutputStream().write(build.toByteArray());
-                                                } catch (IOException ignored) {
-                                                }
-                                            });
-                                            // 先向所有好友发送上线信息，然后加入缓存
-                                            Storage.userSocketsMap.put(this.user.getId(), socket);
-                                        } else {
-                                            Result<UserVO> result = Result.buildFail("用户名或密码错误！");
-                                            ByteData build = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
-                                            send(build);
-                                            // 断开连接
-                                            socket.close();
-                                            throw new RuntimeException("客户端关闭连接");
-                                        }
+                                         currentUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
+                                        login(currentUser);
+                                        break;
+                                    case RECONNECT:
+                                        // 重连
+                                        currentUser = sqLiteService.queryUserById(senderId);
+                                        login(currentUser);
                                         break;
                                     case MESSAGE:
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
@@ -221,6 +198,39 @@ public class StartServer {
                                 }
                             });
                             System.err.println(this.user.getNickname() + "  连接断开,线程结束");
+                        }
+                    }
+
+                    private void login(User currentUser) throws IOException {
+                        if (currentUser != null) {
+                            this.user = currentUser;
+                            System.out.println(this.user.getNickname() + "  登录成功");
+                            UserVO userVO = BeanUtil.copyProperties(currentUser, UserVO.class);
+                            List<UserVO> users = sqLiteService.queryAll();
+                            Set<Integer> onLineIds = new HashSet<>(Storage.userSocketsMap.keySet());
+                            onLineIds.add(this.user.getId());
+                            users = users.stream().peek(value -> value.setOnLine(onLineIds.contains(value.getId()))).collect(Collectors.toList());
+                            userVO.setFriends(users);
+                            Result<UserVO> result = Result.buildOk("登录成功", userVO);
+                            ByteData byteData = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                            send(byteData);
+                            // 发送给所有好友上线信息
+                            Storage.userSocketsMap.values().forEach(userSocket -> {
+                                try {
+                                    ByteData build = ByteData.build(MsgType.ONLINE, JSON.toJSONString(userVO).getBytes(StandardCharsets.UTF_8));
+                                    userSocket.getOutputStream().write(build.toByteArray());
+                                } catch (IOException ignored) {
+                                }
+                            });
+                            // 先向所有好友发送上线信息，然后加入缓存
+                            Storage.userSocketsMap.put(this.user.getId(), socket);
+                        } else {
+                            Result<UserVO> result = Result.buildFail("用户名或密码错误！");
+                            ByteData build = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
+                            send(build);
+                            // 断开连接
+                            socket.close();
+                            throw new RuntimeException("客户端关闭连接");
                         }
                     }
 

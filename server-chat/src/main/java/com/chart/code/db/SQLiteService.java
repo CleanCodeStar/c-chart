@@ -55,6 +55,29 @@ public class SQLiteService {
         }
     }
 
+    public User queryUserById(Integer id) {
+        String sql = "SELECT * FROM tb_user WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return new User().setId(resultSet.getInt("id"))
+                            .setHead(resultSet.getString("head"))
+                            .setUsername(resultSet.getString("username"))
+                            .setPassword(resultSet.getString("password"))
+                            .setNickname(resultSet.getString("nickname"))
+                            .setCreateTime(resultSet.getDate("create_time"))
+                            .setLastLoginTime(resultSet.getDate("last_login_time"));
+
+                } else {
+                    return null;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error verifying user", e);
+        }
+    }
+
     /**
      * 查询所有用户
      *

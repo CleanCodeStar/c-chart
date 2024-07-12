@@ -65,14 +65,21 @@ public class Client {
     /**
      * 连接服务端
      */
-    private void connect() throws IOException {
-        // 要连接的服务端IP地址和端口
-        String host = "127.0.0.1";
-        int port = 8199;
-        socket = new Socket(host, port);
-        // 与服务端建立连接
-        inputStream = socket.getInputStream();
-        outputStream = socket.getOutputStream();
+    private void connect() {
+        try {
+            // 要连接的服务端IP地址和端口
+            String host = "127.0.0.1";
+            int port = 8199;
+            socket = new Socket(host, port);
+            // 与服务端建立连接
+            inputStream = socket.getInputStream();
+            outputStream = socket.getOutputStream();
+        } catch (Exception e) {
+            connect();
+        }
+        if (Storage.currentUser.getId() == null) {
+           // send(new ByteData(MsgType.RECONNECT.getType(), Storage.currentUser.getId(), 0, 0, 0, 0, null));
+        }
     }
 
     public void receive() {

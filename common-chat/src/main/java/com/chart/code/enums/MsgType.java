@@ -56,6 +56,10 @@ public enum MsgType {
      * 取消文件传输
      */
     CANCEL_FILE_TRANSFER("取消文件传输", new byte[]{0x21}),
+    /**
+     * 重新连接
+     */
+    RECONNECT("重新连接", new byte[]{0x22}),
     ;
 
     /**
