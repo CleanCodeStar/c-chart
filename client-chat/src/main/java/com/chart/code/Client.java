@@ -17,7 +17,10 @@ import com.google.common.io.BaseEncoding;
 
 import javax.swing.*;
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
@@ -36,7 +39,7 @@ public class Client {
      */
     private static volatile Client instance;
 
-    private Socket socket;
+    private SocketChannel socketChannel;
 
     /**
      * 私有构造方法，防止被实例化
@@ -69,13 +72,14 @@ public class Client {
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 synchronized (Socket.class) {
-                    if (socket != null) {
+                    if (socketChannel != null) {
                         return;
                     }
                     // 要连接的服务端IP地址和端口
                     String host = "127.0.0.1";
                     int port = 8199;
-                    socket = new Socket(host, port);
+                    socketChannel = SocketChannel.open();
+                    socketChannel.connect(new InetSocketAddress(host, port));
                     // 与服务端建立连接
                     System.out.println("连接服务器成功");
                     if (Storage.currentUser.getId() != null) {
@@ -98,7 +102,7 @@ public class Client {
                     byte[] bytes = getBytes(1);
                     if (!Arrays.equals(new byte[]{0x10}, bytes)) {
                         // 返回错误
-                        socket.close();
+                        socketChannel.close();
                         continue;
                     }
                     dataSize += bytes.length;
@@ -108,7 +112,7 @@ public class Client {
                     MsgType msgType = MsgType.getMsgType(bytes);
                     if (msgType == null) {
                         // 返回错误
-                        socket.close();
+                        socketChannel.close();
                         continue;
                     }
                     dataSize += bytes.length;
@@ -254,13 +258,23 @@ public class Client {
         });
     }
 
+    /**
+     * 获取完整的数据
+     *
+     * @param length 长度
+     * @return 完整的数据
+     * @throws IOException 异常
+     */
     public byte[] getBytes(int length) throws IOException {
-        byte[] bytes = new byte[length];
-        int len = socket.getInputStream().read(bytes);
+        ByteBuffer buffer = ByteBuffer.allocate(length);
+        int len = socketChannel.read(buffer);
         if (len == -1) {
-            socket.close();
+            disconnect();
             throw new IOException("读取失败");
         }
+        byte[] bytes = new byte[len];
+        buffer.rewind();
+        buffer.get(bytes);
         if (len == length) {
             return bytes;
         }
@@ -270,6 +284,14 @@ public class Client {
         return bytes;
     }
 
+
+    /**
+     * 发送文件
+     *
+     * @param friendId 好友Id
+     * @param fileId   文件Id
+     * @param file     文件
+     */
     public void sendFile(Integer friendId, Long fileId, File file) {
         ThreadUtil.getExecutor().submit(() -> {
             String fileName = file.getName();
@@ -305,7 +327,7 @@ public class Client {
      */
     public void send(ByteData byteData) {
         try {
-            socket.getOutputStream().write(byteData.toByteArray());
+            socketChannel.write(byteData.toByteBuffer());
             // System.out.println("消息发送总长度：" + byteData.toByteArray().length);
         } catch (Exception e) {
             System.err.println("消息发送失败");
@@ -318,13 +340,12 @@ public class Client {
      */
     public void disconnect() {
         try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+            if (socketChannel != null && socketChannel.isOpen()) {
+                socketChannel.close();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        socket = null;
+        socketChannel = null;
     }
-
 }

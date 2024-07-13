@@ -1,7 +1,7 @@
 package com.chart.code;
 
 
-import java.net.Socket;
+import java.nio.channels.SocketChannel;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,5 +11,5 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author CleanCode
  */
 public class Storage {
-    public static Map<Integer, Socket> userSocketsMap = new ConcurrentHashMap<>(256);
+    public static Map<Integer, SocketChannel> userSocketsMap = new ConcurrentHashMap<>(256);
 }

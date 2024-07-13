@@ -13,10 +13,10 @@ import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,15 +31,14 @@ import java.util.stream.Collectors;
  */
 public class StartServer {
     public static void main(String[] args) throws IOException {
-        try (ServerSocket serverSocket = new ServerSocket(8199)) {
+        try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+            serverSocketChannel.bind(new InetSocketAddress(8199));
             System.out.println("服务启动成功,等待客户端连接");
             SQLiteService sqLiteService = new SQLiteService();
             while (true) {
-                Socket socket = serverSocket.accept();
                 ThreadUtil.addRunnable(new Runnable() {
                     private User user;
-                    private final InputStream inputStream = socket.getInputStream();
-                    private final OutputStream outputStream = socket.getOutputStream();
+                    final SocketChannel socketChannel = serverSocketChannel.accept();
 
                     @Override
                     public void run() {
@@ -51,7 +50,7 @@ public class StartServer {
                                 dataSize += bytes.length;
                                 if (!Arrays.equals(new byte[]{0x10}, bytes)) {
                                     // 返回错误
-                                    socket.close();
+                                    closeClient();
                                     throw new RuntimeException("客户端关闭连接");
                                 }
                                 // 读取type
@@ -60,7 +59,7 @@ public class StartServer {
                                 MsgType msgType = MsgType.getMsgType(bytes);
                                 if (msgType == null) {
                                     // 返回错误
-                                    socket.close();
+                                    closeClient();
                                     throw new RuntimeException("客户端关闭连接");
                                 }
                                 // 发送者Id
@@ -102,7 +101,7 @@ public class StartServer {
                                 bytes = getBytes(bodyLength);
                                 dataSize += bytes.length;
                                 // System.out.println((user != null ? user.getNickname() : "") + " 接收到的消息长度：" + dataSize);
-                                Socket receiverSocket;
+                                SocketChannel receiverSocket;
                                 User currentUser;
                                 UserDTO user;
                                 switch (msgType) {
@@ -122,9 +121,8 @@ public class StartServer {
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
                                             try {
-                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
                                                 ByteData byteData = ByteData.buildMessage(senderId, receiverId, bytes);
-                                                receiverOutputStream.write(byteData.toByteArray());
+                                                receiverSocket.write(byteData.toByteBuffer());
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
                                                 ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
@@ -148,9 +146,8 @@ public class StartServer {
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
                                             try {
-                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
                                                 ByteData byteData = ByteData.build(msgType, senderId, receiverId, bytes);
-                                                receiverOutputStream.write(byteData.toByteArray());
+                                                receiverSocket.write(byteData.toByteBuffer());
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
                                                 ByteData build = ByteData.build(MsgType.ONT_LINE, JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
@@ -167,9 +164,8 @@ public class StartServer {
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
                                             try {
-                                                OutputStream receiverOutputStream = receiverSocket.getOutputStream();
                                                 ByteData byteData = ByteData.buildFile(senderId, receiverId, fileId, fileName, fileSize, bytes);
-                                                receiverOutputStream.write(byteData.toByteArray());
+                                                receiverSocket.write(byteData.toByteBuffer());
                                                 // System.err.println("发送消息:" + byteData.toByteArray().length);
                                             } catch (Exception e) {
                                                 Result<UserVO> result = Result.buildFail("对方不在线！");
@@ -190,12 +186,12 @@ public class StartServer {
                                 }
                             }
                         } catch (Exception e) {
-                            Storage.userSocketsMap.remove(this.user.getId(), socket);
+                            closeClient();
                             // 发送给所有好友离线信息
                             Storage.userSocketsMap.values().forEach(userSocket -> {
                                 try {
                                     ByteData build = ByteData.build(MsgType.OFFLINE, JSON.toJSONString(this.user).getBytes(StandardCharsets.UTF_8));
-                                    userSocket.getOutputStream().write(build.toByteArray());
+                                    userSocket.write(build.toByteBuffer());
                                 } catch (IOException ignored) {
                                 }
                             });
@@ -220,29 +216,38 @@ public class StartServer {
                             Storage.userSocketsMap.values().forEach(userSocket -> {
                                 try {
                                     ByteData build = ByteData.build(MsgType.ONLINE, JSON.toJSONString(userVO).getBytes(StandardCharsets.UTF_8));
-                                    userSocket.getOutputStream().write(build.toByteArray());
+                                    userSocket.write(build.toByteBuffer());
                                 } catch (IOException ignored) {
                                 }
                             });
                             // 先向所有好友发送上线信息，然后加入缓存
-                            Storage.userSocketsMap.put(this.user.getId(), socket);
+                            Storage.userSocketsMap.put(this.user.getId(), socketChannel);
                         } else {
                             Result<UserVO> result = Result.buildFail("用户名或密码错误！");
                             ByteData build = ByteData.buildLogin(JSON.toJSONString(result).getBytes(StandardCharsets.UTF_8));
                             send(build);
                             // 断开连接
-                            socket.close();
+                            closeClient();
                             throw new RuntimeException("客户端关闭连接");
                         }
                     }
-
+                    /**
+                     * 获取完整的数据
+                     *
+                     * @param length 长度
+                     * @return 完整的数据
+                     * @throws IOException 异常
+                     */
                     public byte[] getBytes(int length) throws IOException {
-                        byte[] bytes = new byte[length];
-                        int len = inputStream.read(bytes);
+                        ByteBuffer buffer = ByteBuffer.allocate(length);
+                        int len = socketChannel.read(buffer);
                         if (len == -1) {
-                            socket.close();
+                            closeClient();
                             throw new IOException("读取失败");
                         }
+                        byte[] bytes = new byte[len];
+                        buffer.rewind();
+                        buffer.get(bytes);
                         if (len == length) {
                             return bytes;
                         }
@@ -253,11 +258,24 @@ public class StartServer {
                     }
 
 
+                    /**
+                     * 发送消息
+                     * @param build 消息
+                     */
                     public void send(ByteData build) {
                         try {
-                            outputStream.write(build.toByteArray());
+                            socketChannel.write(build.toByteBuffer());
                         } catch (IOException e) {
                             System.err.println(this.user.getNickname() + "发送失败");
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    public void closeClient() {
+                        try {
+                            Storage.userSocketsMap.remove(this.user.getId(), socketChannel);
+                            socketChannel.close();
+                        } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     }
