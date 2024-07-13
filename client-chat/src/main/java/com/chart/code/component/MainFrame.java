@@ -25,7 +25,7 @@ public class MainFrame extends JFrame {
 
     public MainFrame(List<UserVO> friends) throws HeadlessException {
         setTitle("Java聊天室 - " + Storage.currentUser.getNickname());
-        setSize(900, 600);
+        setSize(1020, 600);
         setLayout(new TableLayout(new double[][]{{10, 240, 0, TableLayout.FILL, 10}, {10, TableLayout.FILL, 10}}));
         getContentPane().setBackground(Constant.BACKGROUND_COLOR);
 

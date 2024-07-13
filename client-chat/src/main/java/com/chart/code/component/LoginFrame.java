@@ -8,7 +8,6 @@ import info.clearthought.layout.TableLayout;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -57,21 +56,13 @@ public class LoginFrame extends JFrame {
         JButton loginButton = new JButton("登录");
         buttonPanel.add(loginButton, "1, 0");
         loginButton.addActionListener(e -> {
-            try {
-                Client client = Client.getInstance();
-                String username = userNameTextField.getText();
-                String password = passwordField.getText();
-                UserDTO user = new UserDTO();
-                user.setUsername(username).setPassword(password).setRemember(rememberPasswordCheckBox.isSelected());
-                ByteData byteData = ByteData.buildLogin(JSON.toJSONString(user).getBytes(StandardCharsets.UTF_8));
-                client.send(byteData);
-            } catch (IOException ex) {
-                try {
-                    Client.getInstance().disconnect();
-                } catch (IOException ignored) {
-                }
-                JOptionPane.showMessageDialog(this, "服务连接失败");
-            }
+            Client client = Client.getInstance();
+            String username = userNameTextField.getText();
+            String password = passwordField.getText();
+            UserDTO user = new UserDTO();
+            user.setUsername(username).setPassword(password).setRemember(rememberPasswordCheckBox.isSelected());
+            ByteData byteData = ByteData.buildLogin(JSON.toJSONString(user).getBytes(StandardCharsets.UTF_8));
+            client.send(byteData);
         });
 
         setLocationRelativeTo(null);

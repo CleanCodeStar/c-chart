@@ -15,8 +15,10 @@ import org.jdesktop.swingx.JXButton;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -47,11 +49,8 @@ public class FilePanel extends JPanel {
         option.addActionListener(e -> {
             // 取消
             ByteData build = ByteData.build(MsgType.CANCEL_FILE_TRANSFER, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
-            try {
-                Client.getInstance().send(build);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            Client.getInstance().send(build);
+
             cancelFile();
         });
         option.setVisible(false);
@@ -84,12 +83,7 @@ public class FilePanel extends JPanel {
             // 拒绝接收文件
             // 通知对方
             ByteData build = ByteData.build(MsgType.REFUSE_RECEIVE_FILE, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
-            try {
-                Client.getInstance().send(build);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                throw new RuntimeException(ex);
-            }
+            Client.getInstance().send(build);
             Container parent = getParent();
             parent.remove(this);
             parent.revalidate();
@@ -119,7 +113,10 @@ public class FilePanel extends JPanel {
             // 发送方
             // 关闭发送流
             try {
-                Storage.FILE_INPUTSTREAM_MAP.remove(fileMessage.getId()).close();
+                InputStream inputStream = Storage.FILE_INPUTSTREAM_MAP.remove(fileMessage.getId());
+                if (inputStream != null) {
+                    inputStream.close();
+                }
                 Storage.FILE_SEND_MAP.remove(fileMessage.getId());
             } catch (IOException ex) {
                 System.out.println("关闭发送流失败");
@@ -128,9 +125,15 @@ public class FilePanel extends JPanel {
         } else {
             // 接收方
             try {
-                Storage.FILE_OUTPUTSTREAM_MAP.remove(fileMessage.getId()).close();
+                BufferedOutputStream outputStream = Storage.FILE_OUTPUTSTREAM_MAP.remove(fileMessage.getId());
+                if (outputStream != null) {
+                    outputStream.close();
+                }
                 // 把未接收完成的文件删除了
-                Storage.FILE_RECEIVE_MAP.remove(fileMessage.getId()).delete();
+                File file = Storage.FILE_RECEIVE_MAP.remove(fileMessage.getId());
+                if (file != null) {
+                    file.delete();
+                }
             } catch (IOException ex) {
                 System.out.println("关闭发送流失败");
                 throw new RuntimeException(ex);
@@ -168,11 +171,8 @@ public class FilePanel extends JPanel {
             updateUI();
             // 发送确认接受的消息给对方
             ByteData build = ByteData.build(MsgType.AGREE_RECEIVE_FILE, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
-            try {
-                Client.getInstance().send(build);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
+            Client.getInstance().send(build);
+
         }
     }
 

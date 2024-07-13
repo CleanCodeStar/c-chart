@@ -4,6 +4,7 @@ import com.chart.code.enums.MsgType;
 import com.google.common.io.BaseEncoding;
 import lombok.Data;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -140,7 +141,7 @@ public class ByteData {
      * @param body       消息体
      * @return ByteData
      */
-    public static ByteData buildFile(Integer senderId, Integer receiverId,Long fileId, String fileName, long fileSize, byte[] body) {
+    public static ByteData buildFile(Integer senderId, Integer receiverId, Long fileId, String fileName, long fileSize, byte[] body) {
         ByteData byteData = new ByteData();
         byteData.header = new byte[]{0x10};
         byteData.type = MsgType.FILE_TRANSFERRING.getType();
@@ -183,5 +184,14 @@ public class ByteData {
         desPos += length.length;
         System.arraycopy(body, 0, bytes, desPos, body.length);
         return bytes;
+    }
+
+    /**
+     * 转换为字节缓冲区
+     *
+     * @return ByteBuffer
+     */
+    public ByteBuffer toByteBuffer() {
+        return ByteBuffer.wrap(toByteArray());
     }
 }

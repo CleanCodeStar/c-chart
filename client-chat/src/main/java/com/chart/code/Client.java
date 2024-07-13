@@ -6,7 +6,6 @@ import com.alibaba.fastjson.TypeReference;
 import com.chart.code.component.FilePanel;
 import com.chart.code.component.FriendPanel;
 import com.chart.code.component.MainFrame;
-import com.chart.code.component.ShowPanel;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
@@ -21,6 +20,9 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 客户端
@@ -28,22 +30,19 @@ import java.util.Arrays;
  * @author CleanCode
  */
 public class Client {
-    int x = 0;
     /**
      * 单例模式
+     * 获取单例实例
      */
     private static volatile Client instance;
 
-    private InputStream inputStream;
-    private OutputStream outputStream;
     private Socket socket;
 
     /**
      * 私有构造方法，防止被实例化
      */
-    private Client() throws IOException {
+    private Client() {
         connect();
-        receive();
     }
 
     /**
@@ -51,7 +50,7 @@ public class Client {
      *
      * @return 单例实例
      */
-    public static Client getInstance() throws IOException {
+    public static Client getInstance() {
         if (instance == null) {
             synchronized (Client.class) {
                 if (instance == null) {
@@ -66,20 +65,28 @@ public class Client {
      * 连接服务端
      */
     private void connect() {
-        try {
-            // 要连接的服务端IP地址和端口
-            String host = "127.0.0.1";
-            int port = 8199;
-            socket = new Socket(host, port);
-            // 与服务端建立连接
-            inputStream = socket.getInputStream();
-            outputStream = socket.getOutputStream();
-        } catch (Exception e) {
-            connect();
-        }
-        if (Storage.currentUser.getId() == null) {
-           // send(new ByteData(MsgType.RECONNECT.getType(), Storage.currentUser.getId(), 0, 0, 0, 0, null));
-        }
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                synchronized (Socket.class) {
+                    if (socket != null) {
+                        return;
+                    }
+                    // 要连接的服务端IP地址和端口
+                    String host = "127.0.0.1";
+                    int port = 8199;
+                    socket = new Socket(host, port);
+                    // 与服务端建立连接
+                    System.out.println("连接服务器成功");
+                    if (Storage.currentUser.getId() != null) {
+                        send(ByteData.build(MsgType.RECONNECT, JSON.toJSONString(Storage.currentUser).getBytes(StandardCharsets.UTF_8)));
+                    }
+                    receive();
+                }
+            } catch (Exception e) {
+                System.err.println("连接服务器失败");
+            }
+        }, 0, 3, TimeUnit.SECONDS);
     }
 
     public void receive() {
@@ -168,7 +175,9 @@ public class Client {
                             if (userResult.getCode() == 200) {
                                 Storage.loginFrame.dispose();
                                 BeanUtil.copyProperties(userResult.getData(), Storage.currentUser);
-                                Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
+                                if (Storage.mainFrame == null) {
+                                    Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
+                                }
                             } else {
                                 JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
                             }
@@ -201,8 +210,6 @@ public class Client {
                             // 同意接收文件
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
-                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
                             file = Storage.FILE_SEND_MAP.get(fileMessage.getId());
                             sendFile(senderId, fileMessage.getId(), file);
                             break;
@@ -210,6 +217,7 @@ public class Client {
                             // 拒绝接收文件
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
+                            Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
                             JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被拒绝", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
                         case FILE_TRANSFERRING:
@@ -233,22 +241,14 @@ public class Client {
                             // 取消文件传输
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
-                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            ShowPanel showPanel = friendPanel.getDialoguePanel().getShowPanel();
-                            FilePanel filePanel = showPanel.getFileMessageMap().get(fileMessage.getId());
-                            filePanel.cancelFile();
+                            Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
                             JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
                         default:
                     }
                 }
             } catch (Exception e) {
-                try {
-                    Client.getInstance().disconnect();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                    throw new RuntimeException(ex);
-                }
+                disconnect();
                 System.err.println("连接断开,线程结束");
             }
         });
@@ -256,7 +256,7 @@ public class Client {
 
     public byte[] getBytes(int length) throws IOException {
         byte[] bytes = new byte[length];
-        int len = inputStream.read(bytes);
+        int len = socket.getInputStream().read(bytes);
         if (len == -1) {
             socket.close();
             throw new IOException("读取失败");
@@ -305,12 +305,11 @@ public class Client {
      */
     public void send(ByteData byteData) {
         try {
-            outputStream.write(byteData.toByteArray());
+            socket.getOutputStream().write(byteData.toByteArray());
             // System.out.println("消息发送总长度：" + byteData.toByteArray().length);
-        } catch (IOException e) {
-            disconnect();
+        } catch (Exception e) {
             System.err.println("消息发送失败");
-            throw new RuntimeException(e);
+            disconnect();
         }
     }
 
@@ -326,17 +325,6 @@ public class Client {
             throw new RuntimeException(e);
         }
         socket = null;
-        instance = null;
     }
 
-    /**
-     * 释放资源
-     *
-     * @throws Throwable 异常
-     */
-    @Override
-    protected void finalize() throws Throwable {
-        disconnect();
-        super.finalize();
-    }
 }

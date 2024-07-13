@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
  * @author Zhenfeng Li
  */
 public class ThreadUtil {
-    private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(4, 4, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), new ThreadPoolExecutor.CallerRunsPolicy());
+    private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(4, 20, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), new ThreadPoolExecutor.CallerRunsPolicy());
 
 
     /**

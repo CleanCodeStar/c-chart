@@ -7,12 +7,14 @@ import com.chart.code.Storage;
 import com.chart.code.common.Constant;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
+import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
 import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
 import javafx.application.Platform;
+import javafx.concurrent.Worker;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.Scene;
 import javafx.scene.web.WebEngine;
@@ -24,7 +26,6 @@ import org.jdesktop.swingx.JXTextArea;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -55,6 +56,13 @@ public class DialoguePanel extends JPanel {
             engine.loadContent(Constant.DIALOGUE_HTML);
             // 将 WebView 放入 JFXPanel 中
             jfxPanel.setScene(new Scene(webView));
+            webView.getEngine().getLoadWorker().stateProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue == Worker.State.SUCCEEDED) {
+                    System.out.println("123456");
+                    webView.getEngine().executeScript("window.scrollTo(0, document.body.scrollHeight);");
+                }
+            });
+            jfxPanel.updateUI();
         });
         // 操作区
         JPanel operationPanel = new JPanel();
@@ -105,16 +113,13 @@ public class DialoguePanel extends JPanel {
      * 发送消息
      */
     public void sendMessage() {
-        try {
-            if (!Storage.currentUser.getId().equals(friend.getId())) {
-                ByteData byteData = ByteData.buildMessage(Storage.currentUser.getId(), friend.getId(), inputTextArea.getText().getBytes(StandardCharsets.UTF_8));
-                Client.getInstance().send(byteData);
-            }
-            addOwnMessage(inputTextArea.getText());
-            inputTextArea.setText("");
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
+        if (!Storage.currentUser.getId().equals(friend.getId())) {
+            ByteData byteData = ByteData.buildMessage(Storage.currentUser.getId(), friend.getId(), inputTextArea.getText().getBytes(StandardCharsets.UTF_8));
+            Client.getInstance().send(byteData);
         }
+        addOwnMessage(inputTextArea.getText());
+        inputTextArea.setText("");
+
     }
 
     public void sendFile(File[] files) {
@@ -124,15 +129,11 @@ public class DialoguePanel extends JPanel {
                 fileMessage.setId(Constant.SNOWFLAKE.nextId());
                 fileMessage.setFileName(file.getName());
                 fileMessage.setFileSize(file.length());
-                try {
-                    Client instance = Client.getInstance();
-                    ByteData byteData = ByteData.build(MsgType.TRANSFERRING_FILE_REQUEST, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
-                    instance.send(byteData);
-                    Storage.FILE_SEND_MAP.put(fileMessage.getId(), file);
-                } catch (IOException e) {
-                    System.out.println("发送失败" + file.getName());
-                    throw new RuntimeException(e);
-                }
+                Client instance = Client.getInstance();
+                ByteData byteData = ByteData.build(MsgType.TRANSFERRING_FILE_REQUEST, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
+                instance.send(byteData);
+                Storage.FILE_SEND_MAP.put(fileMessage.getId(), file);
+                getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
             });
         });
     }
@@ -152,9 +153,8 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // // 朋友
             // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
-            // 自动滚动到底部
-            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
             jfxPanel.updateUI();
+            webView.getEngine().reload();
         });
     }
 
@@ -165,8 +165,6 @@ public class DialoguePanel extends JPanel {
      */
     public void addFriendMessage(String message) {
         // 显示HTML内容
-        boolean showing = jfxPanel.isShowing();
-        System.out.println(showing);
         Platform.runLater(() -> {
             // // 自己
             // engine.executeScript(String.format(Constant.DIALOGUE_OWN_JS, userVO.getHead(), message));
@@ -174,9 +172,8 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // 朋友
             webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_MESSAGE_JS, friend.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
-            // 自动滚动到底部
-            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
             jfxPanel.updateUI();
+            webView.getEngine().reload();
         });
     }
 
@@ -198,9 +195,8 @@ public class DialoguePanel extends JPanel {
             webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_FILE_JS, currentUser.getHead(), fileName, fileSize, icon));
             // // 时间
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            // 自动滚动到底部
-            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
             jfxPanel.updateUI();
+            webView.getEngine().reload();
         });
     }
 
@@ -223,9 +219,8 @@ public class DialoguePanel extends JPanel {
             // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // // 朋友
             // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
-            // 自动滚动到底部
-            webView.getEngine().executeScript(Constant.DIALOGUE_SCROLL_JS);
             jfxPanel.updateUI();
+            webView.getEngine().reload();
         });
     }
 }

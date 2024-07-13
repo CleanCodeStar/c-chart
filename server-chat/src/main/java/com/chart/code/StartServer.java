@@ -104,16 +104,18 @@ public class StartServer {
                                 // System.out.println((user != null ? user.getNickname() : "") + " 接收到的消息长度：" + dataSize);
                                 Socket receiverSocket;
                                 User currentUser;
+                                UserDTO user;
                                 switch (msgType) {
                                     case LOGIN:
-                                        UserDTO user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
+                                        user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
                                         // 判断登录信息，然后返回消息
-                                         currentUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
+                                        currentUser = sqLiteService.queryUser(user.getUsername(), user.getPassword());
                                         login(currentUser);
                                         break;
                                     case RECONNECT:
                                         // 重连
-                                        currentUser = sqLiteService.queryUserById(senderId);
+                                        user = JSON.parseObject(new String(bytes, StandardCharsets.UTF_8), UserDTO.class);
+                                        currentUser = sqLiteService.queryUserById(user.getId());
                                         login(currentUser);
                                         break;
                                     case MESSAGE:
@@ -188,7 +190,7 @@ public class StartServer {
                                 }
                             }
                         } catch (Exception e) {
-                                                        Storage.userSocketsMap.remove(this.user.getId(), socket);
+                            Storage.userSocketsMap.remove(this.user.getId(), socket);
                             // 发送给所有好友离线信息
                             Storage.userSocketsMap.values().forEach(userSocket -> {
                                 try {
@@ -256,7 +258,7 @@ public class StartServer {
                             outputStream.write(build.toByteArray());
                         } catch (IOException e) {
                             System.err.println(this.user.getNickname() + "发送失败");
-                                                        throw new RuntimeException(e);
+                            throw new RuntimeException(e);
                         }
                     }
                 });
