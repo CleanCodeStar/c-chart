@@ -1,6 +1,7 @@
 package com.chart.code.common;
 
 import com.google.common.io.BaseEncoding;
+import javafx.scene.image.Image;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -25,6 +26,22 @@ public class ImageIconUtil {
             byte[] imageBytes = BaseEncoding.base64().decode(base64);
             BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
             return new ImageIcon(img);
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * base64转换图片
+     */
+    public static Image base64ToImage(String base64) {
+        String x = ",";
+        if (base64.contains(x)) {
+            base64 = base64.split(x)[1];
+        }
+        try {
+            byte[] imageBytes = BaseEncoding.base64().decode(base64);
+            return new Image(new ByteArrayInputStream(imageBytes));
         } catch (Exception ignored) {
         }
         return null;

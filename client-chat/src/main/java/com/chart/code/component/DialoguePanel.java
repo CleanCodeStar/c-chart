@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSON;
 import com.chart.code.Client;
 import com.chart.code.Storage;
 import com.chart.code.common.Constant;
+import com.chart.code.common.ImageIconUtil;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
 import com.chart.code.enums.FilePanelType;
@@ -14,19 +15,26 @@ import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
 import info.clearthought.layout.TableLayout;
 import javafx.application.Platform;
-import javafx.concurrent.Worker;
 import javafx.embed.swing.JFXPanel;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import lombok.Getter;
-import org.apache.commons.text.StringEscapeUtils;
 import org.jdesktop.swingx.JXTextArea;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
 /**
@@ -37,31 +45,90 @@ import java.util.Arrays;
 @Getter
 public class DialoguePanel extends JPanel {
     public final UserVO friend;
-    public WebView webView;
     public final JFXPanel jfxPanel;
     public final JXTextArea inputTextArea;
     public final ShowPanel showPanel;
+    public VBox chatBox;
+
+    /**
+     * 消息面板内容
+     *
+     * @param msg       消息内容
+     * @param head      头像
+     * @param alignment 对齐方式
+     * @param color     颜色
+     * @return HBox
+     */
+    private HBox createMessage(String msg, Image head, Pos alignment, javafx.scene.paint.Color color) {
+        Label label = new Label(msg);
+        label.setFont(new javafx.scene.text.Font("Arial", 14));
+        label.setTextFill(color);
+        label.setWrapText(true);
+        label.setStyle("-fx-background-color: lightgray; -fx-background-radius: 10;-fx-padding: 10");
+        ImageView avatar = new ImageView(head);
+        avatar.setFitWidth(40);
+        avatar.setFitHeight(40);
+
+
+        HBox hBox = new HBox(10);
+        hBox.setPadding(new Insets(5));
+        hBox.setAlignment(alignment);
+
+        if (alignment == Pos.CENTER_RIGHT) {
+            hBox.setAlignment(Pos.TOP_RIGHT);
+            hBox.getChildren().addAll(label, avatar);
+            HBox.setMargin(label, new Insets(0, 0, 0, 200));
+        } else {
+            hBox.setAlignment(Pos.TOP_LEFT);
+            hBox.getChildren().addAll(avatar, label);
+            HBox.setMargin(label, new Insets(0, 200, 0, 0));
+        }
+
+        return hBox;
+    }
+
+    /**
+     * 插入时间
+     *
+     * @param datetime 时间值
+     * @return HBox
+     */
+    private HBox createTimestamp(String datetime) {
+        javafx.scene.control.Label label = new Label(datetime);
+        label.setFont(new Font("Arial", 12));
+        label.setTextFill(javafx.scene.paint.Color.GRAY);
+        label.setStyle("-fx-padding: 5;");
+
+        HBox hBox = new HBox();
+        hBox.setPadding(new Insets(5));
+        hBox.setAlignment(Pos.CENTER);
+        hBox.getChildren().add(label);
+
+        return hBox;
+    }
 
     public DialoguePanel(UserVO friend) {
         this.friend = friend;
         setLayout(new TableLayout(new double[][]{{0, TableLayout.FILL, 0, 245, 0}, {10, TableLayout.FILL, 34, 120, 34}}));
         setBackground(Constant.BACKGROUND_COLOR);
         // 消息区
+
+
         jfxPanel = new JFXPanel();
         jfxPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
         add(jfxPanel, "1,1,1,1");
         Platform.runLater(() -> {
-            webView = new WebView();
-            WebEngine engine = webView.getEngine();
-            engine.loadContent(Constant.DIALOGUE_HTML);
             // 将 WebView 放入 JFXPanel 中
-            jfxPanel.setScene(new Scene(webView));
-            webView.getEngine().getLoadWorker().stateProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue == Worker.State.SUCCEEDED) {
-                    System.out.println("123456");
-                    webView.getEngine().executeScript("window.scrollTo(0, document.body.scrollHeight);");
-                }
-            });
+            chatBox = new VBox(10);
+            chatBox.setPadding(new Insets(10));
+            ScrollPane scrollPane = new ScrollPane();
+            scrollPane.setContent(chatBox);
+            scrollPane.setFitToWidth(true);
+            scrollPane.setVvalue(1.0);
+            scrollPane.setBorder(null);
+
+            chatBox.heightProperty().addListener((observable, oldValue, newValue) -> scrollPane.setVvalue(1.0));
+            jfxPanel.setScene(new Scene(scrollPane));
             jfxPanel.updateUI();
         });
         // 操作区
@@ -147,14 +214,10 @@ public class DialoguePanel extends JPanel {
     public void addOwnMessage(String message) {
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
+            // 时间
+            chatBox.getChildren().add(createTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
             // 自己
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_MESSAGE_JS, currentUser.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
-            // // 时间
-            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            // // 朋友
-            // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
-            jfxPanel.updateUI();
-            webView.getEngine().reload();
+            chatBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, javafx.scene.paint.Color.GRAY));
         });
     }
 
@@ -166,14 +229,8 @@ public class DialoguePanel extends JPanel {
     public void addFriendMessage(String message) {
         // 显示HTML内容
         Platform.runLater(() -> {
-            // // 自己
-            // engine.executeScript(String.format(Constant.DIALOGUE_OWN_JS, userVO.getHead(), message));
-            // // 时间
-            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
             // 朋友
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_MESSAGE_JS, friend.getHead(), StringEscapeUtils.escapeEcmaScript(message.replaceAll("<", "&lt;").replaceAll(">", "&gt;"))));
-            jfxPanel.updateUI();
-            webView.getEngine().reload();
+            chatBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, javafx.scene.paint.Color.GREEN));
         });
     }
 
@@ -191,12 +248,8 @@ public class DialoguePanel extends JPanel {
         };
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
-            // 自己
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_OWN_FILE_JS, currentUser.getHead(), fileName, fileSize, icon));
-            // // 时间
-            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            jfxPanel.updateUI();
-            webView.getEngine().reload();
+            // // 自己
+            chatBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(currentUser.getHead()), fileName, fileSize, Pos.CENTER_RIGHT, ImageIconUtil.base64ToImage(icon)));
         });
     }
 
@@ -213,14 +266,54 @@ public class DialoguePanel extends JPanel {
             default -> Constant.FILE_UNKNOWN_ICO;
         };
         Platform.runLater(() -> {
-            // 自己
-            webView.getEngine().executeScript(String.format(Constant.DIALOGUE_FRIEND_FILE_JS, friend.getHead(), fileName, fileSize, icon));
-            // // 时间
-            // engine.executeScript(String.format(Constant.DIALOGUE_TIME_JS, "2024年"));
-            // // 朋友
-            // engine.executeScript(String.format(Constant.DIALOGUE_FRIEND_JS, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT", "你好啊，我是小红"));
-            jfxPanel.updateUI();
-            webView.getEngine().reload();
+            // 朋友
+            chatBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(friend.getHead()), fileName, fileSize, Pos.CENTER_LEFT, ImageIconUtil.base64ToImage(icon)));
         });
+    }
+
+    /**
+     * 发送文件
+     *
+     * @param head      头像
+     * @param fileName  文件名称
+     * @param fileSize  文件大小
+     * @param alignment 对齐方式
+     * @param suffix    后缀
+     * @return HBox
+     */
+    private HBox createFile(Image head, String fileName, String fileSize, Pos alignment, Image suffix) {
+        // File icon
+        ImageView headImageView = new ImageView(head);
+        headImageView.setFitWidth(50);
+        headImageView.setFitHeight(50);
+
+        ImageView suffixImageView = new ImageView(suffix);
+        suffixImageView.setFitWidth(50);
+        suffixImageView.setFitHeight(50);
+
+        Label fileNameLabel = new Label(fileName);
+        fileNameLabel.setFont(new Font("Arial", 14));
+        fileNameLabel.setTextFill(javafx.scene.paint.Color.BLACK);
+
+        Label fileSizeLabel = new Label(fileSize);
+        fileSizeLabel.setFont(new Font("Arial", 14));
+        fileSizeLabel.setTextFill(javafx.scene.paint.Color.GRAY);
+
+        VBox fileDetails = new VBox(5, fileNameLabel, fileSizeLabel);
+
+        HBox hBox = new HBox(10);
+        hBox.setPadding(new Insets(5));
+        hBox.setAlignment(alignment);
+        if (alignment == Pos.CENTER_RIGHT) {
+            hBox.setAlignment(Pos.TOP_RIGHT);
+            hBox.getChildren().addAll(suffixImageView, fileDetails, headImageView);
+            HBox.setMargin(suffixImageView, new Insets(0, 0, 0, 180));
+        } else {
+            hBox.setAlignment(Pos.TOP_LEFT);
+            hBox.getChildren().addAll(headImageView, fileDetails, suffixImageView);
+            HBox.setMargin(suffixImageView, new Insets(0, 180, 0, 0));
+        }
+
+        return hBox;
     }
 }

@@ -3,6 +3,9 @@ package org.citrsw;
 import javax.sound.sampled.*;
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Mp3播放
@@ -101,10 +104,31 @@ public class MP3Player {
         clip.close();
     }
 
+    /**
+     * 获取音频总时长
+     *
+     * @return 音频总时长(微秒)
+     */
+    public long getTotalLength() {
+        return clip.getMicrosecondLength();
+    }
+
+    /**
+     * 获取音频总时长
+     *
+     * @return 音频总时间(时 : 分 : 秒)
+     */
+    public LocalTime getTotalTime() {
+        return LocalTime.of(0, 0).plus(clip.getMicrosecondLength(), ChronoUnit.MICROS);
+    }
+
     public static void main(String[] args) throws UnsupportedAudioFileException, LineUnavailableException, IOException, InterruptedException {
         MP3Player mp3Player = new MP3Player("E:\\设计资料\\合成源文件+素材\\NO020\\宇宙航行\\视频\\Two Steps From Hell-Victory.mp3");
         mp3Player.start();
-        Thread.sleep(5000);
+        Thread.sleep(1000);
+        System.out.println(mp3Player.getTotalLength());
+        System.out.println(mp3Player.getTotalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+
         mp3Player.pause();
         Thread.sleep(3000);
         mp3Player.resume();
