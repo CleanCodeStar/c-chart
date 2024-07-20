@@ -288,8 +288,8 @@ public class DialoguePanel extends JPanel {
         headImageView.setFitHeight(50);
 
         ImageView suffixImageView = new ImageView(suffix);
-        suffixImageView.setFitWidth(50);
-        suffixImageView.setFitHeight(50);
+        suffixImageView.setFitWidth(40);
+        suffixImageView.setFitHeight(40);
 
         Label fileNameLabel = new Label(fileName);
         fileNameLabel.setFont(new Font("Arial", 14));
