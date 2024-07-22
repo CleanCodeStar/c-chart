@@ -1,8 +1,8 @@
 package com.chart.code;
 
 import cn.hutool.core.bean.BeanUtil;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.TypeReference;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.chart.code.component.FilePanel;
 import com.chart.code.component.FriendPanel;
 import com.chart.code.component.MainFrame;
