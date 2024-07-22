@@ -48,7 +48,7 @@ public class DialoguePanel extends JPanel {
     public final JFXPanel jfxPanel;
     public final JXTextArea inputTextArea;
     public final ShowPanel showPanel;
-    public VBox chatBox;
+    public VBox chartBox;
 
     /**
      * 消息面板内容
@@ -119,15 +119,15 @@ public class DialoguePanel extends JPanel {
         add(jfxPanel, "1,1,1,1");
         Platform.runLater(() -> {
             // 将 WebView 放入 JFXPanel 中
-            chatBox = new VBox(10);
-            chatBox.setPadding(new Insets(10));
+            chartBox = new VBox(10);
+            chartBox.setPadding(new Insets(10));
             ScrollPane scrollPane = new ScrollPane();
-            scrollPane.setContent(chatBox);
+            scrollPane.setContent(chartBox);
             scrollPane.setFitToWidth(true);
             scrollPane.setVvalue(1.0);
             scrollPane.setBorder(null);
 
-            chatBox.heightProperty().addListener((observable, oldValue, newValue) -> scrollPane.setVvalue(1.0));
+            chartBox.heightProperty().addListener((observable, oldValue, newValue) -> scrollPane.setVvalue(1.0));
             jfxPanel.setScene(new Scene(scrollPane));
             jfxPanel.updateUI();
         });
@@ -215,9 +215,9 @@ public class DialoguePanel extends JPanel {
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
             // 时间
-            chatBox.getChildren().add(createTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
+            chartBox.getChildren().add(createTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
             // 自己
-            chatBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, javafx.scene.paint.Color.GRAY));
+            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, javafx.scene.paint.Color.GRAY));
         });
     }
 
@@ -230,7 +230,7 @@ public class DialoguePanel extends JPanel {
         // 显示HTML内容
         Platform.runLater(() -> {
             // 朋友
-            chatBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, javafx.scene.paint.Color.GREEN));
+            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, javafx.scene.paint.Color.GREEN));
         });
     }
 
@@ -249,7 +249,7 @@ public class DialoguePanel extends JPanel {
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
             // // 自己
-            chatBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(currentUser.getHead()), fileName, fileSize, Pos.CENTER_RIGHT, ImageIconUtil.base64ToImage(icon)));
+            chartBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(currentUser.getHead()), fileName, fileSize, Pos.CENTER_RIGHT, ImageIconUtil.base64ToImage(icon)));
         });
     }
 
@@ -267,7 +267,7 @@ public class DialoguePanel extends JPanel {
         };
         Platform.runLater(() -> {
             // 朋友
-            chatBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(friend.getHead()), fileName, fileSize, Pos.CENTER_LEFT, ImageIconUtil.base64ToImage(icon)));
+            chartBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(friend.getHead()), fileName, fileSize, Pos.CENTER_LEFT, ImageIconUtil.base64ToImage(icon)));
         });
     }
 

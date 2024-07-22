@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.citrsw</groupId>
-        <artifactId>c-chat</artifactId>
+        <artifactId>c-chart</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>client-chat</artifactId>
+    <artifactId>client-chart</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>org.citrsw</groupId>
-            <artifactId>common-chat</artifactId>
+            <artifactId>common-chart</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
