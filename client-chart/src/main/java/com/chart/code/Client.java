@@ -1,11 +1,9 @@
 package com.chart.code;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
-import com.chart.code.component.FilePanel;
-import com.chart.code.component.FriendPanel;
-import com.chart.code.component.MainFrame;
+import com.chart.code.component.FriendRowBox;
+import com.chart.code.component.MainBorderPane;
 import com.chart.code.define.ByteData;
 import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
@@ -14,6 +12,8 @@ import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.Result;
 import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
+import javafx.application.Platform;
+import javafx.scene.Scene;
 
 import javax.swing.*;
 import java.io.*;
@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -171,44 +172,58 @@ public class Client {
                     String data;
                     FileMessage fileMessage;
                     File file;
+                    FriendRowBox friendRowBox;
+                    UserVO userVO;
                     switch (msgType) {
                         case LOGIN:
                             data = new String(bytes, StandardCharsets.UTF_8);
                             Result<UserVO> userResult = JSON.parseObject(data, new TypeReference<>() {
                             });
                             if (userResult.getCode() == 200) {
-                                Storage.loginFrame.dispose();
-                                BeanUtil.copyProperties(userResult.getData(), Storage.currentUser);
-                                if (Storage.mainFrame == null) {
-                                    Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
-                                }
+                                Storage.currentUser = userResult.getData();
+                                Platform.runLater(() -> {
+                                    // Storage.stage.close();
+                                    // 创建新窗口
+                                    Storage.stage.setTitle("Java聊天室 - " + Storage.currentUser.getNickname());
+                                    // 设置新窗口的布局和内容
+                                    MainBorderPane mainBorderPane = new MainBorderPane();
+                                    Scene scene = new Scene(mainBorderPane, 1000, 600);
+                                    // 加载和应用全局CSS样式
+                                    scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
+                                    Storage.stage.setScene(scene);
+                                    // Storage.loginFrame.dispose();
+                                    // if (Storage.mainFrame == null) {
+                                    //     Storage.mainFrame = new MainFrame(userResult.getData().getFriends());
+                                    // }
+                                });
                             } else {
-                                JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
+                                // JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
                             }
                             break;
                         case MESSAGE:
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            friendPanel.getDialoguePanel().addFriendMessage(data);
+                            friendRowBox = Storage.mainBorderPane.getFriendPanelMap().get(senderId);
+                            friendRowBox.getDialogueBox().addFriendMessage(data);
+                            friendRowBox.addLastMsg(data);
                             break;
                         case ONLINE:
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            UserVO userVO = JSON.parseObject(data, UserVO.class);
-                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
-                            friendPanel.setOnLine(true);
+                            userVO = JSON.parseObject(data, UserVO.class);
+                            friendRowBox = Storage.mainBorderPane.getFriendPanelMap().get(userVO.getId());
+                            friendRowBox.setOnLine(true);
                             break;
                         case OFFLINE:
                             data = new String(bytes, StandardCharsets.UTF_8);
                             userVO = JSON.parseObject(data, UserVO.class);
-                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(userVO.getId());
-                            friendPanel.setOnLine(false);
+                            friendRowBox = Storage.mainBorderPane.getFriendPanelMap().get(userVO.getId());
+                            friendRowBox.setOnLine(false);
                             break;
                         case TRANSFERRING_FILE_REQUEST:
                             // 发送文件请求
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            fileMessage = JSON.parseObject(data, FileMessage.class);
-                            friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                            friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.FRIEND, fileMessage);
+                            // fileMessage = JSON.parseObject(data, FileMessage.class);
+                            // FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                            // friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.FRIEND, fileMessage);
                             break;
                         case AGREE_RECEIVE_FILE:
                             // 同意接收文件
@@ -220,9 +235,9 @@ public class Client {
                         case REFUSE_RECEIVE_FILE:
                             // 拒绝接收文件
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            fileMessage = JSON.parseObject(data, FileMessage.class);
-                            Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
-                            JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被拒绝", "提示", JOptionPane.ERROR_MESSAGE);
+                            // fileMessage = JSON.parseObject(data, FileMessage.class);
+                            // Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
+                            // JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被拒绝", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
                         case FILE_TRANSFERRING:
                             // 文件传输中
@@ -233,8 +248,8 @@ public class Client {
                                     Storage.FILE_OUTPUTSTREAM_MAP.put(fileId, fileOutputStream);
                                 }
                                 // System.out.println(senderId + "  接收到文件大小" + fileSize + " 文件名称 " + fileName + " 文件Id " + fileId + " 本次文件数据包 " + bodyLength);
-                                friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
-                                friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId).updateProgress(bodyLength);
+                                // friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
+                                // friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId).updateProgress(bodyLength);
                                 fileOutputStream.write(bytes);
                                 // 取出输出文件流并向输出流写入数据
                             } catch (Exception e) {
@@ -245,13 +260,14 @@ public class Client {
                             // 取消文件传输
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
-                            Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
-                            JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
+                            // Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
+                            // JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
                         default:
                     }
                 }
             } catch (Exception e) {
+                e.printStackTrace();
                 disconnect();
                 System.err.println("连接断开,线程结束");
             }
@@ -303,17 +319,17 @@ public class Client {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
                 // 从源文件读取内容并写入目标文件
-                try {
-                    FilePanel filePanel = Storage.mainFrame.getFriendPanelMap().get(friendId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
-                    while ((bytesRead = bis.read(buffer)) != -1) {
-                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId, fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
-                        instance.send(byteData);
-                        filePanel.updateProgress(bytesRead);
-                    }
-                    System.out.println("结束发送" + file.getName());
-                } catch (IOException e) {
-                    System.err.println("发送失败或被取消  " + file.getName());
-                }
+                // try {
+                //     FilePanel filePanel = Storage.mainFrame.getFriendPanelMap().get(friendId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
+                //     while ((bytesRead = bis.read(buffer)) != -1) {
+                //         ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId, fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                //         instance.send(byteData);
+                //         filePanel.updateProgress(bytesRead);
+                //     }
+                //     System.out.println("结束发送" + file.getName());
+                // } catch (IOException e) {
+                //     System.err.println("发送失败或被取消  " + file.getName());
+                // }
             } catch (IOException e) {
                 System.err.println("发送失败" + file.getName());
             }

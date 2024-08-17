@@ -103,7 +103,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>com.chart.code.component.Login</mainClass>
+                            <mainClass>com.chart.code.StartApplication</mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
                             <jlinkImageName>app</jlinkImageName>
@@ -121,7 +121,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.chart.code.component.Login</mainClass>
+                            <mainClass>com.chart.code.StartApplication</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

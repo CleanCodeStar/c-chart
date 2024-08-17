@@ -1,9 +1,8 @@
 package com.chart.code;
 
-import com.chart.code.component.FriendPanel;
-import com.chart.code.component.LoginFrame;
-import com.chart.code.component.MainFrame;
-import com.chart.code.define.User;
+import com.chart.code.component.MainBorderPane;
+import com.chart.code.vo.UserVO;
+import javafx.stage.Stage;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -20,19 +19,18 @@ public class Storage {
     /**
      * 当前登录用户信息
      */
-    public static User currentUser = new User();
+    public static UserVO currentUser = new UserVO();
     /**
      * 登录界面
      */
-    public static LoginFrame loginFrame;
+    public static Stage stage;
     /**
      * 主界面
      */
-    public static MainFrame mainFrame;
+    public static MainBorderPane mainBorderPane;
     /**
      * 当前选择的聊天FriendPanel
      */
-    public static FriendPanel currentFriendPanel;
     /**
      * 文件发送缓存
      */

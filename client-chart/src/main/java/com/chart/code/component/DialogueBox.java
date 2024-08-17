@@ -8,172 +8,98 @@ import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
-import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
 import com.chart.code.vo.FileMessage;
 import com.chart.code.vo.UserVO;
-import info.clearthought.layout.TableLayout;
 import javafx.application.Platform;
-import javafx.embed.swing.JFXPanel;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import lombok.Getter;
-import org.jdesktop.swingx.JXTextArea;
+import javafx.stage.FileChooser;
 
-import javax.swing.*;
-import java.awt.*;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
+import java.util.List;
 
 /**
- * 对话面板
+ * 对话窗
  *
  * @author CleanCode
  */
-@Getter
-public class DialoguePanel extends JPanel {
-    public final UserVO friend;
-    public final JFXPanel jfxPanel;
-    public final JXTextArea inputTextArea;
-    public final ShowPanel showPanel;
-    public VBox chartBox;
+public class DialogueBox extends BorderPane {
+    private final VBox chartBox;
+    private final UserVO friend;
+    private final TextArea inputTextArea;
+    private LocalDateTime lastTime;
 
-    /**
-     * 消息面板内容
-     *
-     * @param msg       消息内容
-     * @param head      头像
-     * @param alignment 对齐方式
-     * @param color     颜色
-     * @return HBox
-     */
-    private HBox createMessage(String msg, Image head, Pos alignment, javafx.scene.paint.Color color) {
-        Label label = new Label(msg);
-        label.setFont(new javafx.scene.text.Font("Arial", 14));
-        label.setTextFill(color);
-        label.setWrapText(true);
-        label.setStyle("-fx-background-color: lightgray; -fx-background-radius: 10;-fx-padding: 10");
-        ImageView avatar = new ImageView(head);
-        avatar.setFitWidth(40);
-        avatar.setFitHeight(40);
-
-
-        HBox hBox = new HBox(10);
-        hBox.setPadding(new Insets(5));
-        hBox.setAlignment(alignment);
-
-        if (alignment == Pos.CENTER_RIGHT) {
-            hBox.setAlignment(Pos.TOP_RIGHT);
-            hBox.getChildren().addAll(label, avatar);
-            HBox.setMargin(label, new Insets(0, 0, 0, 200));
-        } else {
-            hBox.setAlignment(Pos.TOP_LEFT);
-            hBox.getChildren().addAll(avatar, label);
-            HBox.setMargin(label, new Insets(0, 200, 0, 0));
-        }
-
-        return hBox;
-    }
-
-    /**
-     * 插入时间
-     *
-     * @param datetime 时间值
-     * @return HBox
-     */
-    private HBox createTimestamp(String datetime) {
-        javafx.scene.control.Label label = new Label(datetime);
-        label.setFont(new Font("Arial", 12));
-        label.setTextFill(javafx.scene.paint.Color.GRAY);
-        label.setStyle("-fx-padding: 5;");
-
-        HBox hBox = new HBox();
-        hBox.setPadding(new Insets(5));
-        hBox.setAlignment(Pos.CENTER);
-        hBox.getChildren().add(label);
-
-        return hBox;
-    }
-
-    public DialoguePanel(UserVO friend) {
+    public DialogueBox(UserVO friend) {
         this.friend = friend;
-        setLayout(new TableLayout(new double[][]{{0, TableLayout.FILL, 0, 245, 0}, {10, TableLayout.FILL, 34, 120, 34}}));
-        setBackground(Constant.BACKGROUND_COLOR);
-        // 消息区
+        chartBox = new VBox(10);
+        chartBox.setPadding(new Insets(10));
+        ScrollPane chartScrollPane = new ScrollPane(chartBox);
+        BorderStroke borderStroke = new BorderStroke(
+                Color.GRAY,
+                BorderStrokeStyle.SOLID,
+                CornerRadii.EMPTY,
+                new BorderWidths(1, 1, 1, 0)
+        );
+        setBorder(new Border(borderStroke));
+        chartScrollPane.setBorder(null);
+        chartScrollPane.setFitToWidth(true);
+        chartScrollPane.setBorder(new Border(borderStroke));
+        chartScrollPane.setVvalue(1.0);
+        setCenter(chartScrollPane);
+        chartBox.heightProperty().addListener((observable, oldValue, newValue) -> chartScrollPane.setVvalue(1.0));
 
-
-        jfxPanel = new JFXPanel();
-        jfxPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
-        add(jfxPanel, "1,1,1,1");
-        Platform.runLater(() -> {
-            // 将 WebView 放入 JFXPanel 中
-            chartBox = new VBox(10);
-            chartBox.setPadding(new Insets(10));
-            ScrollPane scrollPane = new ScrollPane();
-            scrollPane.setContent(chartBox);
-            scrollPane.setFitToWidth(true);
-            scrollPane.setVvalue(1.0);
-            scrollPane.setBorder(null);
-
-            chartBox.heightProperty().addListener((observable, oldValue, newValue) -> scrollPane.setVvalue(1.0));
-            jfxPanel.setScene(new Scene(scrollPane));
-            jfxPanel.updateUI();
+        BorderPane optionBox = new BorderPane();
+        optionBox.setPrefHeight(220);
+        HBox buttonBox = new HBox(10);
+        buttonBox.setPadding(new Insets(5, 10, 5, 10));
+        Button emotion = new Button("表情");
+        Button file = new Button("文件");
+        file.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("选择要发送的文件");
+            List<File> files = fileChooser.showOpenMultipleDialog(this.getScene().getWindow());
+            sendFile(files);
         });
-        // 操作区
-        JPanel operationPanel = new JPanel();
-        operationPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.LIGHT_GRAY));
-        operationPanel.setBackground(Constant.CURRENT_COLOR);
-        add(operationPanel, "0,2,2,2");
-        operationPanel.setLayout(new TableLayout(new double[][]{{10, 60, 10, 60, 10}, {5, TableLayout.FILL, 5}}));
-        JButton expressionButton = new JButton("表情");
-        JButton fileButton = new JButton("文件");
-        operationPanel.add(expressionButton, "1,1,1,1");
-        operationPanel.add(fileButton, "3,1,3,1");
-        fileButton.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            // 只选择文件
-            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-            // 可以选择多个文件
-            fileChooser.setMultiSelectionEnabled(true);
-            // 设置标题
-            fileChooser.setDialogTitle("选择要发送的文件");
-            int returnValue = fileChooser.showOpenDialog(this);
-            if (returnValue == JFileChooser.APPROVE_OPTION) {
-                sendFile(fileChooser.getSelectedFiles());
+        buttonBox.getChildren().addAll(emotion, file);
+        inputTextArea = new TextArea();
+        inputTextArea.setWrapText(true);
+        ScrollPane inputScrollPane = new ScrollPane(inputTextArea);
+        inputScrollPane.setPadding(new Insets(0));
+        inputTextArea.prefWidthProperty().bind(widthProperty().subtract(4));
+        inputTextArea.setPrefRowCount(7);
+        inputTextArea.setOnKeyPressed(event -> {
+            if (event.getCode().equals(javafx.scene.input.KeyCode.ENTER)) {
+                sendMessage();
             }
         });
 
+        HBox sendBox = new HBox();
+        Button send = new Button("发送");
+        send.setOnAction(event -> {
+            sendMessage();
+        });
+        sendBox.setAlignment(Pos.TOP_RIGHT);
+        sendBox.getChildren().addAll(send);
+        optionBox.setTop(buttonBox);
+        optionBox.setCenter(inputScrollPane);
+        optionBox.setBottom(sendBox);
+        setBottom(optionBox);
 
-        // 输入区
-        inputTextArea = new JXTextArea("输入要发送的内容");
-        inputTextArea.setLineWrap(true);
-        inputTextArea.setBackground(Constant.BACKGROUND_COLOR);
-        inputTextArea.requestFocus();
-        add(inputTextArea, "1,3,1,3");
-        // 发送区
-        JPanel sendPanel = new JPanel();
-        add(sendPanel, "1,4,1,4");
-        sendPanel.setLayout(new TableLayout(new double[][]{{TableLayout.FILL, 60, 10}, {5, TableLayout.FILL, 5}}));
-        JButton sendButton = new JButton("发送");
-        sendPanel.add(sendButton, "1,1,1,1");
-        sendButton.addActionListener(e -> sendMessage());
-
-        // 好友信息展示区
-        showPanel = new ShowPanel(friend);
-        add(showPanel, "3,1,3,4");
-        updateUI();
     }
 
     /**
@@ -189,9 +115,9 @@ public class DialoguePanel extends JPanel {
 
     }
 
-    public void sendFile(File[] files) {
+    public void sendFile(List<File> files) {
         ThreadUtil.getExecutor().submit(() -> {
-            Arrays.stream(files).forEach(file -> {
+            files.forEach(file -> {
                 FileMessage fileMessage = new FileMessage();
                 fileMessage.setId(Constant.SNOWFLAKE.nextId());
                 fileMessage.setFileName(file.getName());
@@ -200,7 +126,7 @@ public class DialoguePanel extends JPanel {
                 ByteData byteData = ByteData.build(MsgType.TRANSFERRING_FILE_REQUEST, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
                 instance.send(byteData);
                 Storage.FILE_SEND_MAP.put(fileMessage.getId(), file);
-                getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
+                // getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
             });
         });
     }
@@ -209,13 +135,17 @@ public class DialoguePanel extends JPanel {
     /**
      * 自己发送的消息
      *
-     * @param message
+     * @param message 消息
      */
     public void addOwnMessage(String message) {
         User currentUser = Storage.currentUser;
         Platform.runLater(() -> {
-            // 时间
-            chartBox.getChildren().add(createTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
+            LocalDateTime localDateTime = LocalDateTime.now();
+            if (lastTime == null || Duration.between(lastTime, localDateTime).abs().toMinutes() > 3) {
+                // 与上一条消息之间，超过三分钟，则加入时间
+                chartBox.getChildren().add(createTimestamp(localDateTime.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
+            }
+            lastTime = localDateTime;
             // 自己
             chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, javafx.scene.paint.Color.GRAY));
         });
@@ -229,6 +159,12 @@ public class DialoguePanel extends JPanel {
     public void addFriendMessage(String message) {
         // 显示HTML内容
         Platform.runLater(() -> {
+            LocalDateTime localDateTime = LocalDateTime.now();
+            if (lastTime == null || Duration.between(lastTime, localDateTime).abs().toMinutes() > 3) {
+                // 与上一条消息之间，超过三分钟，则加入时间
+                chartBox.getChildren().add(createTimestamp(localDateTime.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"))));
+            }
+            lastTime = localDateTime;
             // 朋友
             chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, javafx.scene.paint.Color.GREEN));
         });
@@ -313,6 +249,63 @@ public class DialoguePanel extends JPanel {
             hBox.getChildren().addAll(headImageView, fileDetails, suffixImageView);
             HBox.setMargin(suffixImageView, new Insets(0, 180, 0, 0));
         }
+
+        return hBox;
+    }
+
+    /**
+     * 消息面板内容
+     *
+     * @param msg       消息内容
+     * @param head      头像
+     * @param alignment 对齐方式
+     * @param color     颜色
+     * @return HBox
+     */
+    private HBox createMessage(String msg, Image head, Pos alignment, javafx.scene.paint.Color color) {
+        Label label = new Label(msg);
+        label.setFont(new javafx.scene.text.Font("Arial", 14));
+        label.setTextFill(color);
+        label.setWrapText(true);
+        label.setStyle("-fx-background-color: lightgray; -fx-background-radius: 10;-fx-padding: 10");
+        ImageView avatar = new ImageView(head);
+        avatar.setFitWidth(40);
+        avatar.setFitHeight(40);
+
+
+        HBox hBox = new HBox(10);
+        hBox.setPadding(new Insets(5));
+        hBox.setAlignment(alignment);
+
+        if (alignment == Pos.CENTER_RIGHT) {
+            hBox.setAlignment(Pos.TOP_RIGHT);
+            hBox.getChildren().addAll(label, avatar);
+            HBox.setMargin(label, new Insets(0, 0, 0, 200));
+        } else {
+            hBox.setAlignment(Pos.TOP_LEFT);
+            hBox.getChildren().addAll(avatar, label);
+            HBox.setMargin(label, new Insets(0, 200, 0, 0));
+        }
+
+        return hBox;
+    }
+
+    /**
+     * 插入时间
+     *
+     * @param datetime 时间值
+     * @return HBox
+     */
+    private HBox createTimestamp(String datetime) {
+        javafx.scene.control.Label label = new Label(datetime);
+        label.setFont(new Font("Arial", 12));
+        label.setTextFill(javafx.scene.paint.Color.GRAY);
+        label.setStyle("-fx-padding: 5;");
+
+        HBox hBox = new HBox();
+        hBox.setPadding(new Insets(2));
+        hBox.setAlignment(Pos.CENTER);
+        hBox.getChildren().add(label);
 
         return hBox;
     }
