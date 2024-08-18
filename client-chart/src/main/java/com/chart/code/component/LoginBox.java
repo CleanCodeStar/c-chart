@@ -1,18 +1,16 @@
 package com.chart.code.component;
 
 import com.alibaba.fastjson2.JSON;
-import com.chart.code.Client;
+import com.chart.code.MessageHandle;
 import com.chart.code.define.ByteData;
 import com.chart.code.dto.UserDTO;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 
 /**
  * 登录页面
@@ -55,11 +53,11 @@ public class LoginBox extends VBox {
         Button login = new Button("登录");
         login.setPrefWidth(100);
         login.setOnAction(event -> {
-            Client client = Client.getInstance();
+            MessageHandle messageHandle = MessageHandle.getInstance();
             UserDTO user = new UserDTO();
             user.setUsername(usernameText.getText()).setPassword(passwordText.getText()).setRemember(checkBox.isSelected());
             ByteData byteData = ByteData.buildLogin(JSON.toJSONString(user).getBytes(StandardCharsets.UTF_8));
-            client.send(byteData);
+            messageHandle.send(byteData);
 
         });
         getChildren().addAll(usernameRow, passwordRow, checkBox, login);

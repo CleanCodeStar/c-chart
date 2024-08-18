@@ -53,13 +53,17 @@ public enum MsgType {
      */
     REFUSE_RECEIVE_FILE("拒绝接收文件", new byte[]{0x20}),
     /**
-     * 取消文件传输
+     * 发送方取消文件传输
      */
-    CANCEL_FILE_TRANSFER("取消文件传输", new byte[]{0x21}),
+    CANCEL_SEND_FILE_TRANSFER("发送方取消文件传输", new byte[]{0x21}),
+    /**
+     * 接收方取消文件传输
+     */
+    CANCEL_RECEIVE_FILE_TRANSFER("接收方取消文件传输", new byte[]{0x22}),
     /**
      * 重新连接
      */
-    RECONNECT("重新连接", new byte[]{0x22}),
+    RECONNECT("重新连接", new byte[]{0x23}),
     ;
 
     /**

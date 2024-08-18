@@ -2,10 +2,12 @@ package com.chart.code;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
+import com.chart.code.common.MessageOriginEnum;
+import com.chart.code.component.DialogueBox;
+import com.chart.code.component.FileBox;
 import com.chart.code.component.FriendRowBox;
 import com.chart.code.component.MainBorderPane;
 import com.chart.code.define.ByteData;
-import com.chart.code.enums.FilePanelType;
 import com.chart.code.enums.MsgType;
 import com.chart.code.thread.ThreadUtil;
 import com.chart.code.vo.FileMessage;
@@ -14,8 +16,9 @@ import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 
-import javax.swing.*;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -33,19 +36,19 @@ import java.util.concurrent.TimeUnit;
  *
  * @author CleanCode
  */
-public class Client {
+public class MessageHandle {
     /**
      * 单例模式
      * 获取单例实例
      */
-    private static volatile Client instance;
+    private static volatile MessageHandle instance;
 
     private SocketChannel socketChannel;
 
     /**
      * 私有构造方法，防止被实例化
      */
-    private Client() {
+    private MessageHandle() {
         connect();
     }
 
@@ -54,11 +57,11 @@ public class Client {
      *
      * @return 单例实例
      */
-    public static Client getInstance() {
+    public static MessageHandle getInstance() {
         if (instance == null) {
-            synchronized (Client.class) {
+            synchronized (MessageHandle.class) {
                 if (instance == null) {
-                    instance = new Client();
+                    instance = new MessageHandle();
                 }
             }
         }
@@ -174,6 +177,7 @@ public class Client {
                     File file;
                     FriendRowBox friendRowBox;
                     UserVO userVO;
+                    DialogueBox dialogueBox = null;
                     switch (msgType) {
                         case LOGIN:
                             data = new String(bytes, StandardCharsets.UTF_8);
@@ -187,7 +191,7 @@ public class Client {
                                     Storage.stage.setTitle("Java聊天室 - " + Storage.currentUser.getNickname());
                                     // 设置新窗口的布局和内容
                                     MainBorderPane mainBorderPane = new MainBorderPane();
-                                    Scene scene = new Scene(mainBorderPane, 1000, 600);
+                                    Scene scene = new Scene(mainBorderPane, 970, 770);
                                     // 加载和应用全局CSS样式
                                     scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
                                     Storage.stage.setScene(scene);
@@ -221,7 +225,9 @@ public class Client {
                         case TRANSFERRING_FILE_REQUEST:
                             // 发送文件请求
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            // fileMessage = JSON.parseObject(data, FileMessage.class);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            dialogueBox = Storage.mainBorderPane.getFriendPanelMap().get(senderId).getDialogueBox();
+                            dialogueBox.addFriendFile(fileMessage);
                             // FriendPanel friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                             // friendPanel.getDialoguePanel().getShowPanel().putFileMessage(FilePanelType.FRIEND, fileMessage);
                             break;
@@ -235,6 +241,13 @@ public class Client {
                         case REFUSE_RECEIVE_FILE:
                             // 拒绝接收文件
                             data = new String(bytes, StandardCharsets.UTF_8);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            Platform.runLater(() -> {
+                                HBox buttons = Storage.mainBorderPane.getFriendPanelMap().get(senderId).getDialogueBox().getFileMap().get(MessageOriginEnum.OWN.getName() + fileMessage.getId()).getButtons();
+                                buttons.getChildren().removeAll(buttons.getChildren());
+                                Label label = new Label("被拒收");
+                                buttons.getChildren().add(label);
+                            });
                             // fileMessage = JSON.parseObject(data, FileMessage.class);
                             // Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
                             // JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被拒绝", "提示", JOptionPane.ERROR_MESSAGE);
@@ -244,22 +257,34 @@ public class Client {
                             try {
                                 BufferedOutputStream fileOutputStream = Storage.FILE_OUTPUTSTREAM_MAP.get(fileId);
                                 if (fileOutputStream == null) {
-                                    fileOutputStream = new BufferedOutputStream(new FileOutputStream(Storage.FILE_RECEIVE_MAP.get(fileId)));
-                                    Storage.FILE_OUTPUTSTREAM_MAP.put(fileId, fileOutputStream);
+                                    // 表示已经取消接受
+                                    break;
                                 }
+                                fileOutputStream.write(bytes);
+                                dialogueBox = Storage.mainBorderPane.getFriendPanelMap().get(senderId).getDialogueBox();
+                                dialogueBox.getFileMap().get(MessageOriginEnum.FRIEND.getName() + fileId).updateProgress(bodyLength);
                                 // System.out.println(senderId + "  接收到文件大小" + fileSize + " 文件名称 " + fileName + " 文件Id " + fileId + " 本次文件数据包 " + bodyLength);
                                 // friendPanel = Storage.mainFrame.getFriendPanelMap().get(senderId);
                                 // friendPanel.getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId).updateProgress(bodyLength);
-                                fileOutputStream.write(bytes);
                                 // 取出输出文件流并向输出流写入数据
                             } catch (Exception e) {
+                                e.printStackTrace();
                                 System.err.println(fileName + " 文件保存被迫中断！");
                             }
                             break;
-                        case CANCEL_FILE_TRANSFER:
+                        case CANCEL_SEND_FILE_TRANSFER:
                             // 取消文件传输
                             data = new String(bytes, StandardCharsets.UTF_8);
                             fileMessage = JSON.parseObject(data, FileMessage.class);
+                            Platform.runLater(() -> Storage.mainBorderPane.getFriendPanelMap().get(senderId).getDialogueBox().getFileMap().get(MessageOriginEnum.FRIEND.getName() + fileMessage.getId()).cancelFile());
+                            // Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
+                            // JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
+                            break;
+                        case CANCEL_RECEIVE_FILE_TRANSFER:
+                            // 取消文件传输
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            fileMessage = JSON.parseObject(data, FileMessage.class);
+                            Platform.runLater(() -> Storage.mainBorderPane.getFriendPanelMap().get(senderId).getDialogueBox().getFileMap().get(MessageOriginEnum.OWN.getName() + fileMessage.getId()).cancelFile());
                             // Storage.mainFrame.getFriendPanelMap().get(senderId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileMessage.getId()).cancelFile();
                             // JOptionPane.showMessageDialog(Storage.mainFrame, fileMessage.getFileName() + "文件传输被取消", "提示", JOptionPane.ERROR_MESSAGE);
                             break;
@@ -319,17 +344,22 @@ public class Client {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
                 // 从源文件读取内容并写入目标文件
-                // try {
-                //     FilePanel filePanel = Storage.mainFrame.getFriendPanelMap().get(friendId).getDialoguePanel().getShowPanel().getFileMessageMap().get(fileId);
-                //     while ((bytesRead = bis.read(buffer)) != -1) {
-                //         ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId, fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
-                //         instance.send(byteData);
-                //         filePanel.updateProgress(bytesRead);
-                //     }
-                //     System.out.println("结束发送" + file.getName());
-                // } catch (IOException e) {
-                //     System.err.println("发送失败或被取消  " + file.getName());
-                // }
+                try {
+                    DialogueBox dialogueBox = Storage.mainBorderPane.getFriendPanelMap().get(friendId).getDialogueBox();
+                    FileBox fileBox = dialogueBox.getFileMap().get(MessageOriginEnum.OWN.getName() + fileId);
+                    Platform.runLater(() -> {
+                        dialogueBox.getFileMap().get(MessageOriginEnum.OWN.getName() + fileId).addProgressIndicator();
+                    });
+                    while ((bytesRead = bis.read(buffer)) != -1) {
+                        ByteData byteData = ByteData.buildFile(Storage.currentUser.getId(), friendId, fileId, fileName, fileSize, Arrays.copyOf(buffer, bytesRead));
+                        instance.send(byteData);
+                        fileBox.updateProgress(bytesRead);
+                    }
+                    Storage.FILE_INPUTSTREAM_MAP.remove(fileId, bis);
+                    System.out.println("结束发送" + file.getName());
+                } catch (IOException e) {
+                    System.err.println("发送失败或被取消  " + file.getName());
+                }
             } catch (IOException e) {
                 System.err.println("发送失败" + file.getName());
             }

@@ -1,11 +1,11 @@
 package com.chart.code.component;
 
-import cn.hutool.core.io.FileUtil;
 import com.alibaba.fastjson2.JSON;
-import com.chart.code.Client;
+import com.chart.code.MessageHandle;
 import com.chart.code.Storage;
 import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
+import com.chart.code.common.MessageOriginEnum;
 import com.chart.code.define.ByteData;
 import com.chart.code.define.User;
 import com.chart.code.enums.MsgType;
@@ -21,10 +21,12 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
+import lombok.Getter;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +34,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 对话窗
@@ -43,6 +47,8 @@ public class DialogueBox extends BorderPane {
     private final UserVO friend;
     private final TextArea inputTextArea;
     private LocalDateTime lastTime;
+    @Getter
+    private Map<String, FileBox> fileMap = new ConcurrentHashMap<>(128);
 
     public DialogueBox(UserVO friend) {
         this.friend = friend;
@@ -72,6 +78,8 @@ public class DialogueBox extends BorderPane {
         file.setOnAction(event -> {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("选择要发送的文件");
+            // 设置初始目录
+            fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + File.separator + "Documents"));
             List<File> files = fileChooser.showOpenMultipleDialog(this.getScene().getWindow());
             sendFile(files);
         });
@@ -83,7 +91,7 @@ public class DialogueBox extends BorderPane {
         inputTextArea.prefWidthProperty().bind(widthProperty().subtract(4));
         inputTextArea.setPrefRowCount(7);
         inputTextArea.setOnKeyPressed(event -> {
-            if (event.getCode().equals(javafx.scene.input.KeyCode.ENTER)) {
+            if (event.getCode().equals(KeyCode.ENTER) && event.isControlDown()) {
                 sendMessage();
             }
         });
@@ -99,7 +107,6 @@ public class DialogueBox extends BorderPane {
         optionBox.setCenter(inputScrollPane);
         optionBox.setBottom(sendBox);
         setBottom(optionBox);
-
     }
 
     /**
@@ -108,7 +115,7 @@ public class DialogueBox extends BorderPane {
     public void sendMessage() {
         if (!Storage.currentUser.getId().equals(friend.getId())) {
             ByteData byteData = ByteData.buildMessage(Storage.currentUser.getId(), friend.getId(), inputTextArea.getText().getBytes(StandardCharsets.UTF_8));
-            Client.getInstance().send(byteData);
+            MessageHandle.getInstance().send(byteData);
         }
         addOwnMessage(inputTextArea.getText());
         inputTextArea.setText("");
@@ -122,11 +129,13 @@ public class DialogueBox extends BorderPane {
                 fileMessage.setId(Constant.SNOWFLAKE.nextId());
                 fileMessage.setFileName(file.getName());
                 fileMessage.setFileSize(file.length());
-                Client instance = Client.getInstance();
+                MessageHandle instance = MessageHandle.getInstance();
                 ByteData byteData = ByteData.build(MsgType.TRANSFERRING_FILE_REQUEST, Storage.currentUser.getId(), friend.getId(), JSON.toJSONString(fileMessage).getBytes(StandardCharsets.UTF_8));
                 instance.send(byteData);
                 Storage.FILE_SEND_MAP.put(fileMessage.getId(), file);
                 // getShowPanel().putFileMessage(FilePanelType.OWN, fileMessage);
+                addOwnFile(fileMessage);
+                // addFriendFile(file.getName(), FileUtils.byteCountToDisplaySize(fileMessage.getFileSize()));
             });
         });
     }
@@ -147,7 +156,7 @@ public class DialogueBox extends BorderPane {
             }
             lastTime = localDateTime;
             // 自己
-            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, javafx.scene.paint.Color.GRAY));
+            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(currentUser.getHead()), Pos.CENTER_RIGHT, Color.GRAY));
         });
     }
 
@@ -166,91 +175,47 @@ public class DialogueBox extends BorderPane {
             }
             lastTime = localDateTime;
             // 朋友
-            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, javafx.scene.paint.Color.GREEN));
+            chartBox.getChildren().add(createMessage(message, ImageIconUtil.base64ToImage(friend.getHead()), Pos.CENTER_LEFT, Color.GREEN));
         });
     }
 
     /**
      * 自己发送的文件
      *
-     * @param fileName 文件名称
-     * @param fileSize 文件大小
+     * @param fileMessage 文件消息
      */
-    public void addOwnFile(String fileName, String fileSize) {
-        String icon = switch (FileUtil.getSuffix(fileName)) {
-            case "xls", "xlsx" -> Constant.FILE_EXCEL_ICO;
-            case "doc", "docx" -> Constant.FILE_DOC_ICO;
-            default -> Constant.FILE_UNKNOWN_ICO;
-        };
-        User currentUser = Storage.currentUser;
+    public void addOwnFile(FileMessage fileMessage) {
+        UserVO currentUser = Storage.currentUser;
         Platform.runLater(() -> {
             // // 自己
-            chartBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(currentUser.getHead()), fileName, fileSize, Pos.CENTER_RIGHT, ImageIconUtil.base64ToImage(icon)));
+            chartBox.getChildren().add(createFile(currentUser, MessageOriginEnum.OWN, fileMessage));
         });
     }
 
     /**
      * 好友发送的文件
      *
-     * @param fileName 文件名称
-     * @param fileSize 文件大小
+     * @param fileMessage 文件消息
      */
-    public void addFriendFile(String fileName, String fileSize) {
-        String icon = switch (FileUtil.getSuffix(fileName)) {
-            case "xls", "xlsx" -> Constant.FILE_EXCEL_ICO;
-            case "doc", "docx" -> Constant.FILE_DOC_ICO;
-            default -> Constant.FILE_UNKNOWN_ICO;
-        };
+    public void addFriendFile(FileMessage fileMessage) {
         Platform.runLater(() -> {
             // 朋友
-            chartBox.getChildren().add(createFile(ImageIconUtil.base64ToImage(friend.getHead()), fileName, fileSize, Pos.CENTER_LEFT, ImageIconUtil.base64ToImage(icon)));
+            chartBox.getChildren().add(createFile(friend, MessageOriginEnum.FRIEND, fileMessage));
         });
     }
 
     /**
      * 发送文件
      *
-     * @param head      头像
-     * @param fileName  文件名称
-     * @param fileSize  文件大小
-     * @param alignment 对齐方式
-     * @param suffix    后缀
+     * @param userVO            自己或好友
+     * @param messageOriginEnum 对齐方式
+     * @param fileMessage       文件消息
      * @return HBox
      */
-    private HBox createFile(Image head, String fileName, String fileSize, Pos alignment, Image suffix) {
-        // File icon
-        ImageView headImageView = new ImageView(head);
-        headImageView.setFitWidth(50);
-        headImageView.setFitHeight(50);
-
-        ImageView suffixImageView = new ImageView(suffix);
-        suffixImageView.setFitWidth(40);
-        suffixImageView.setFitHeight(40);
-
-        Label fileNameLabel = new Label(fileName);
-        fileNameLabel.setFont(new Font("Arial", 14));
-        fileNameLabel.setTextFill(javafx.scene.paint.Color.BLACK);
-
-        Label fileSizeLabel = new Label(fileSize);
-        fileSizeLabel.setFont(new Font("Arial", 14));
-        fileSizeLabel.setTextFill(javafx.scene.paint.Color.GRAY);
-
-        VBox fileDetails = new VBox(5, fileNameLabel, fileSizeLabel);
-
-        HBox hBox = new HBox(10);
-        hBox.setPadding(new Insets(5));
-        hBox.setAlignment(alignment);
-        if (alignment == Pos.CENTER_RIGHT) {
-            hBox.setAlignment(Pos.TOP_RIGHT);
-            hBox.getChildren().addAll(suffixImageView, fileDetails, headImageView);
-            HBox.setMargin(suffixImageView, new Insets(0, 0, 0, 180));
-        } else {
-            hBox.setAlignment(Pos.TOP_LEFT);
-            hBox.getChildren().addAll(headImageView, fileDetails, suffixImageView);
-            HBox.setMargin(suffixImageView, new Insets(0, 180, 0, 0));
-        }
-
-        return hBox;
+    private HBox createFile(UserVO userVO, MessageOriginEnum messageOriginEnum, FileMessage fileMessage) {
+        FileBox fileBox = new FileBox(userVO, messageOriginEnum, fileMessage);
+        fileMap.put(messageOriginEnum.getName() + fileMessage.getId(), fileBox);
+        return fileBox;
     }
 
     /**
@@ -262,7 +227,7 @@ public class DialogueBox extends BorderPane {
      * @param color     颜色
      * @return HBox
      */
-    private HBox createMessage(String msg, Image head, Pos alignment, javafx.scene.paint.Color color) {
+    private HBox createMessage(String msg, Image head, Pos alignment, Color color) {
         Label label = new Label(msg);
         label.setFont(new javafx.scene.text.Font("Arial", 14));
         label.setTextFill(color);
@@ -299,7 +264,7 @@ public class DialogueBox extends BorderPane {
     private HBox createTimestamp(String datetime) {
         javafx.scene.control.Label label = new Label(datetime);
         label.setFont(new Font("Arial", 12));
-        label.setTextFill(javafx.scene.paint.Color.GRAY);
+        label.setTextFill(Color.GRAY);
         label.setStyle("-fx-padding: 5;");
 
         HBox hBox = new HBox();

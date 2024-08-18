@@ -141,7 +141,8 @@ public class StartServer {
                                         // 同意接收文件
                                     case REFUSE_RECEIVE_FILE:
                                         // 拒绝接收文件
-                                    case CANCEL_FILE_TRANSFER:
+                                    case CANCEL_SEND_FILE_TRANSFER:
+                                    case CANCEL_RECEIVE_FILE_TRANSFER:
                                         // 取消文件传输
                                         receiverSocket = Storage.userSocketsMap.get(receiverId);
                                         if (receiverSocket != null) {
