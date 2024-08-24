@@ -22,7 +22,7 @@ public class StartApplication extends Application {
     @Override
     public void start(Stage primaryStage) {
         Storage.stage = primaryStage;
-        LoginBox loginBox = new LoginBox(primaryStage);
+        LoginBox loginBox = new LoginBox();
         Scene scene = new Scene(loginBox);
         // 加载和应用全局CSS样式
         scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());

@@ -1,7 +1,6 @@
 package com.chart.code.db;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.StrUtil;
 import com.chart.code.annotation.FieldIgnore;
 import com.chart.code.define.User;
 import com.chart.code.vo.UserVO;
@@ -78,6 +77,12 @@ public class SQLiteService {
         return users.isEmpty() ? null : users.get(0);
     }
 
+    public User checkUser(String username) {
+        String sql = "SELECT * FROM tb_user WHERE username = ? ";
+        List<User> users = queryList(sql, User.class, username);
+        return users.isEmpty() ? null : users.get(0);
+    }
+
     public User queryUserById(Integer id) {
         String sql = "SELECT * FROM tb_user WHERE id = ?";
         List<User> users = queryList(sql, User.class, id);
@@ -98,7 +103,7 @@ public class SQLiteService {
     /**
      * 插入数据
      */
-    public void insert(String tableName, Object entity) {
+    public boolean insert(String tableName, Object entity) {
         List<String> colNameList = new ArrayList<>();
         // 占位符List
         List<String> placeholderList = new ArrayList<>();
@@ -129,7 +134,8 @@ public class SQLiteService {
                 }
 
             } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
+                return false;
             }
         }
         String sql = "INSERT INTO " + tableName + " (" + StringUtils.join(colNameList, ",") + ") VALUES (" + StringUtils.join(placeholderList, ",") + ")";
@@ -138,9 +144,10 @@ public class SQLiteService {
                 statement.setObject(i + 1, colValueList.get(i));
             }
             statement.executeUpdate();
+            return true;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+            return false;
         }
-
     }
 }

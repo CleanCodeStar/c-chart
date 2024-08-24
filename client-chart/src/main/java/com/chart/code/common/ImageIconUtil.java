@@ -2,6 +2,7 @@ package com.chart.code.common;
 
 import com.google.common.io.BaseEncoding;
 import javafx.scene.image.Image;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -35,6 +36,9 @@ public class ImageIconUtil {
      * base64转换图片
      */
     public static Image base64ToImage(String base64) {
+        if (StringUtils.isBlank(base64)) {
+            return null;
+        }
         String x = ",";
         if (base64.contains(x)) {
             base64 = base64.split(x)[1];

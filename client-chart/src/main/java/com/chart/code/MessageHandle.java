@@ -16,6 +16,7 @@ import com.chart.code.vo.UserVO;
 import com.google.common.io.BaseEncoding;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 
@@ -166,22 +167,35 @@ public class MessageHandle {
                     bytes = getBytes(4);
                     int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                     dataSize += bytes.length;
-                    // System.out.print("读取消息长度长度:" + bytes.length+" / ");
+                    System.out.print("读取消息长度长度:" + bytes.length + " / ");
                     // 消息体
+                    System.out.println(bodyLength);
                     bytes = getBytes(bodyLength);
                     dataSize += bytes.length;
                     // System.out.print("读取消息体长度:" + bytes.length+" / ");
                     // System.out.println(senderId + "  接收到消息总长度" + dataSize);
+                    Result<UserVO> userResult;
                     String data;
                     FileMessage fileMessage;
                     File file;
                     FriendRowBox friendRowBox;
                     UserVO userVO;
-                    DialogueBox dialogueBox = null;
+                    DialogueBox dialogueBox;
                     switch (msgType) {
+                        case REGISTER:
+                            data = new String(bytes, StandardCharsets.UTF_8);
+                            userResult = JSON.parseObject(data, new TypeReference<>() {
+                            });
+                            Platform.runLater(() -> {
+                                Alert alert = new Alert(Alert.AlertType.ERROR);
+                                alert.setTitle("提示");
+                                alert.setHeaderText(userResult.getMsg());
+                                alert.showAndWait();
+                            });
+                            break;
                         case LOGIN:
                             data = new String(bytes, StandardCharsets.UTF_8);
-                            Result<UserVO> userResult = JSON.parseObject(data, new TypeReference<>() {
+                            userResult = JSON.parseObject(data, new TypeReference<>() {
                             });
                             if (userResult.getCode() == 200) {
                                 Storage.currentUser = userResult.getData();
@@ -201,7 +215,12 @@ public class MessageHandle {
                                     // }
                                 });
                             } else {
-                                // JOptionPane.showMessageDialog(Storage.loginFrame, userResult.getMsg(), "提示", JOptionPane.ERROR_MESSAGE);
+                                Platform.runLater(() -> {
+                                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                                    alert.setTitle("提示");
+                                    alert.setHeaderText(userResult.getMsg());
+                                    alert.showAndWait();
+                                });
                             }
                             break;
                         case MESSAGE:
@@ -313,12 +332,14 @@ public class MessageHandle {
             disconnect();
             throw new IOException("读取失败");
         }
-        byte[] bytes = new byte[len];
-        buffer.rewind();
-        buffer.get(bytes);
+
         if (len == length) {
+            byte[] bytes = new byte[len];
+            buffer.rewind();
+            buffer.get(bytes);
             return bytes;
         }
+        byte[] bytes = new byte[length];
         // System.err.println( "一次性没读够长度");
         byte[] bytes2 = getBytes(length - len);
         System.arraycopy(bytes2, 0, bytes, len, bytes2.length);

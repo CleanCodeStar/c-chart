@@ -64,6 +64,11 @@ public enum MsgType {
      * 重新连接
      */
     RECONNECT("重新连接", new byte[]{0x23}),
+
+    /**
+     * 注册
+     */
+    REGISTER("注册", new byte[]{0x24}),
     ;
 
     /**

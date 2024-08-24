@@ -2,25 +2,44 @@ package com.chart.code.component;
 
 import com.alibaba.fastjson2.JSON;
 import com.chart.code.MessageHandle;
+import com.chart.code.Storage;
 import com.chart.code.define.ByteData;
 import com.chart.code.dto.UserDTO;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * 登录页面
  *
  * @author CleanCode
  */
-public class LoginBox extends VBox {
-    public LoginBox(Stage primaryStage) {
-        setAlignment(Pos.CENTER);
-        setSpacing(10);
+public class LoginBox extends BorderPane {
+    public LoginBox() {
+        Button backButton = new Button("注册");
+        backButton.setOnAction(e -> {
+            Scene scene = new Scene(new RegisterBox());
+            // 加载和应用全局CSS样式
+            scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
+            Storage.stage.setTitle("注册");
+            Storage.stage.setScene(scene);
+        });
+        AnchorPane anchorPane = new AnchorPane();
+        AnchorPane.setTopAnchor(backButton, 10.0);
+        AnchorPane.setRightAnchor(backButton, 10.0);
+        anchorPane.getChildren().add(backButton);
+
+
+        VBox vBox = new VBox();
+        vBox.setAlignment(Pos.CENTER);
+        vBox.setSpacing(10);
 
         HBox usernameRow = new HBox();
         usernameRow.setSpacing(10);
@@ -60,7 +79,9 @@ public class LoginBox extends VBox {
             messageHandle.send(byteData);
 
         });
-        getChildren().addAll(usernameRow, passwordRow, checkBox, login);
+        vBox.getChildren().addAll(usernameRow, passwordRow, checkBox, login);
+        setTop(anchorPane);
+        setCenter(vBox);
         setPrefSize(400, 500);
     }
 }
