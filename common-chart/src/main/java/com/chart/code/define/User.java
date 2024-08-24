@@ -1,6 +1,7 @@
 package com.chart.code.define;
 
 import com.alibaba.fastjson2.annotation.JSONField;
+import com.chart.code.annotation.FieldIgnore;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -52,5 +53,6 @@ public class User implements Serializable {
     /**
      * 记住密码
      */
+    @FieldIgnore
     private boolean remember;
 }
