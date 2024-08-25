@@ -1,8 +1,11 @@
 package com.chart.code.common;
 
 import cn.hutool.core.lang.Snowflake;
-
-import java.awt.*;
+import javafx.geometry.Insets;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.paint.Color;
 
 /**
  * Constant
@@ -15,13 +18,13 @@ public class Constant {
      */
     public final static Color BACKGROUND_COLOR = Color.WHITE;
     /**
+     * 提醒颜色
+     */
+    public final static Background REMINDER_COLOR = new Background(new BackgroundFill(Color.LIGHTGREEN, CornerRadii.EMPTY, Insets.EMPTY));
+    /**
      * 雪花算法
      */
     public final static Snowflake SNOWFLAKE = new Snowflake(0, 0);
-    /**
-     * 现调颜色
-     */
-    public final static Color CURRENT_COLOR = new Color(241, 241, 241);
     /**
      * 现调颜色
      */

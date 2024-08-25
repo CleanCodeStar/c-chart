@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -48,7 +49,7 @@ public class DialogueBox extends BorderPane {
     private final TextArea inputTextArea;
     private LocalDateTime lastTime;
     @Getter
-    private Map<String, FileBox> fileMap = new ConcurrentHashMap<>(128);
+    private final Map<String, FileBox> fileMap = new ConcurrentHashMap<>(128);
 
     public DialogueBox(UserVO friend) {
         this.friend = friend;
@@ -168,6 +169,11 @@ public class DialogueBox extends BorderPane {
     public void addFriendMessage(String message) {
         // 显示HTML内容
         Platform.runLater(() -> {
+            if (!Objects.equals(Storage.mainBorderPane.getSelectedFriendPanel(), Storage.mainBorderPane.getFriendPanelMap().get(friend.getId()))) {
+                Storage.mainBorderPane.getFriendPanelMap().get(friend.getId()).setBackground(Constant.REMINDER_COLOR);
+                Storage.mainBorderPane.getFriendPanelMap().get(friend.getId()).setLastMsg(message);
+            }
+
             LocalDateTime localDateTime = LocalDateTime.now();
             if (lastTime == null || Duration.between(lastTime, localDateTime).abs().toMinutes() > 3) {
                 // 与上一条消息之间，超过三分钟，则加入时间

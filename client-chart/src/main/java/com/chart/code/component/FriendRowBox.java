@@ -1,6 +1,7 @@
 package com.chart.code.component;
 
 import com.chart.code.Storage;
+import com.chart.code.common.Constant;
 import com.chart.code.common.ImageIconUtil;
 import com.chart.code.vo.UserVO;
 import javafx.application.Platform;
@@ -9,9 +10,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import lombok.Getter;
@@ -30,8 +29,7 @@ public class FriendRowBox extends HBox {
     public FriendRowBox(UserVO friend) {
         dialogueBox = new DialogueBox(friend);
         setSpacing(5);
-        setPadding(new Insets(0, 5, 0, 5));
-        setAlignment(Pos.CENTER);
+        setPadding(new Insets(5, 5, 5, 5));
 
         Image head = ImageIconUtil.base64ToImage(friend.getHead());
         ImageView avatar = new ImageView(head);
@@ -50,32 +48,54 @@ public class FriendRowBox extends HBox {
         Label name = new Label(friend.getNickname());
         name.setPrefWidth(110);
         name.setPrefHeight(20);
-        lastMsg = new Label("信");
+        lastMsg = new Label();
         lastMsg.setPrefWidth(110);
         lastMsg.setPrefHeight(20);
         friendInfo.getChildren().addAll(name, lastMsg);
-        status = new Label(friend.getOnLine() ? "在线" : "离线");
-        status.setPrefWidth(45);
+        status = new Label();
+        setAlignment(Pos.TOP_CENTER);
+        BackgroundFill backgroundFill = new BackgroundFill(
+                Color.GREEN,
+                new CornerRadii(5),
+                null
+        );
+        status.setBackground(new Background(backgroundFill));
+        status.setPrefWidth(10);
+        status.setMaxWidth(10);
+        status.setMinWidth(10);
+        status.setPrefHeight(10);
+        status.setMaxHeight(10);
+        status.setMinHeight(10);
+        status.setVisible(friend.getOnLine());
         Background background = getBackground();
         getChildren().addAll(avatar, friendInfo, status);
 
         setOnMouseEntered(e -> {
+            if (Constant.REMINDER_COLOR.equals(this.getBackground())) {
+                return;
+            }
             MainBorderPane mainBorderPane = Storage.mainBorderPane;
             if (mainBorderPane.getSelectedFriendPanel() != null && mainBorderPane.getSelectedFriendPanel() != this) {
                 setBackground(Background.fill(Color.LIGHTGRAY));
             }
         });
         setOnMouseExited(e -> {
+            if (Constant.REMINDER_COLOR.equals(this.getBackground())) {
+                return;
+            }
             MainBorderPane mainBorderPane = Storage.mainBorderPane;
             if (mainBorderPane.getSelectedFriendPanel() != null && mainBorderPane.getSelectedFriendPanel() != this) {
                 setBackground(background);
             }
         });
         setOnMouseReleased(e -> {
+
             MainBorderPane mainBorderPane = Storage.mainBorderPane;
             mainBorderPane.setCenter(dialogueBox);
             mainBorderPane.getFriendPanelMap().values().forEach(friendPanel -> {
-                friendPanel.setBackground(background);
+                if (!Constant.REMINDER_COLOR.equals(friendPanel.getBackground()) && !Constant.REMINDER_COLOR.equals(this.getBackground())) {
+                    friendPanel.setBackground(background);
+                }
             });
             mainBorderPane.setSelectedFriendPanel(this);
             setBackground(Background.fill(Color.LIGHTGRAY));
@@ -85,12 +105,13 @@ public class FriendRowBox extends HBox {
 
     public void setOnLine(boolean onLine) {
         Platform.runLater(() -> {
-            this.status.setText(onLine ? "在线" : "离线");
+            this.status.setVisible(onLine);
         });
     }
 
-    public void addLastMsg(String message) {
-
-
+    public void setLastMsg(String msg) {
+        Platform.runLater(() -> {
+            this.lastMsg.setText(msg);
+        });
     }
 }

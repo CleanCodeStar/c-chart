@@ -167,9 +167,9 @@ public class MessageHandle {
                     bytes = getBytes(4);
                     int bodyLength = Integer.parseInt(BaseEncoding.base16().encode(bytes), 16);
                     dataSize += bytes.length;
-                    System.out.print("读取消息长度长度:" + bytes.length + " / ");
+                    // System.out.print("读取消息长度长度:" + bytes.length + " / ");
                     // 消息体
-                    System.out.println(bodyLength);
+                    // System.out.println(bodyLength);
                     bytes = getBytes(bodyLength);
                     dataSize += bytes.length;
                     // System.out.print("读取消息体长度:" + bytes.length+" / ");
@@ -227,7 +227,6 @@ public class MessageHandle {
                             data = new String(bytes, StandardCharsets.UTF_8);
                             friendRowBox = Storage.mainBorderPane.getFriendPanelMap().get(senderId);
                             friendRowBox.getDialogueBox().addFriendMessage(data);
-                            friendRowBox.addLastMsg(data);
                             break;
                         case ONLINE:
                             data = new String(bytes, StandardCharsets.UTF_8);
